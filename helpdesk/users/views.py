@@ -47,6 +47,23 @@ class UserLoginView(LoginView):
     template_name = 'users/login.html'
     authentication_form = LoginForm
 
+    def form_valid(self, form):
+        """Override to handle 'remember me'."""
+        # Log the user in
+        user = form.get_user()
+        login(self.request, user)
+
+        # Handle 'remember me'
+        remember = form.cleaned_data.get('remember_me')
+        if remember:
+            # Session will expire in 30 days
+            self.request.session.set_expiry(60 * 60 * 24 * 30)
+        else:
+            # Session expires on browser close
+            self.request.session.set_expiry(0)
+
+        return super().form_valid(form)
+
     def get_success_url(self):
         user = self.request.user
 

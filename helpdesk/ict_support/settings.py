@@ -149,3 +149,9 @@ MAX_ATTACHMENT_SIZE_MB = env('MAX_ATTACHMENT_SIZE_MB', default=2, cast=int)
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+AUTHENTICATION_BACKENDS = [
+    'ict_support.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]

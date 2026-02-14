@@ -74,17 +74,17 @@ class RegisterForm(UserCreationForm):
             raise forms.ValidationError('Enter a valid phone number starting with 015/016/013/019/018/017/014 followed by 8 digits.')
         return digits
 
+from django.contrib.auth import authenticate
 
 class LoginForm(AuthenticationForm):
-    """Custom AuthenticationForm that adds Bootstrap classes to widgets and an optional remember_me field."""
+    """Custom AuthenticationForm that allows login with username or email."""
     remember_me = forms.BooleanField(required=False, initial=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Add Bootstrap classes and placeholders to widgets
         self.fields['username'].widget.attrs.update({
             'class': 'form-control',
-            'placeholder': 'Username',
+            'placeholder': 'Username or Email',
             'id': 'id_username',
             'autofocus': True,
         })
@@ -94,4 +94,30 @@ class LoginForm(AuthenticationForm):
             'id': 'id_password',
             'autocomplete': 'current-password',
         })
+
+    def clean(self):
+        username_or_email = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username_or_email and password:
+            # If input looks like an email, fetch the username
+            if '@' in username_or_email:
+                try:
+                    user_obj = User.objects.get(email=username_or_email)
+                    username = user_obj.username
+                except User.DoesNotExist:
+                    raise forms.ValidationError("Invalid email or password")
+            else:
+                username = username_or_email
+
+            # Authenticate with resolved username
+            self.user_cache = authenticate(
+                self.request, username=username, password=password
+            )
+            if self.user_cache is None:
+                raise forms.ValidationError("Invalid username/email or password")
+            else:
+                self.confirm_login_allowed(self.user_cache)
+
+        return self.cleaned_data
 
