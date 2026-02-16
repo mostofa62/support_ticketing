@@ -20,7 +20,7 @@
                         {% csrf_token %}
 
                                                 <div class="row g-3">
-                                                    <div class="col-12 col-md-4">
+                                                    <div class="col-12 col-md-6">
                                                         <label class="form-label" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
                                                         {{ form.category }}
                                                         {% if form.category.errors %}
@@ -30,7 +30,7 @@
                                                         {% endif %}
                                                     </div>
 
-                                                    <div class="col-12 col-md-4">
+                                                    <div class="col-12 col-md-6">
                                                         <label class="form-label" for="{{ form.subcategory.id_for_label }}">{{ form.subcategory.label }}</label>
                                                         {{ form.subcategory }}
                                                         {% if form.subcategory.errors %}
@@ -40,10 +40,10 @@
                                                         {% endif %}
                                                     </div>
 
-                                                    <div class="col-12 col-md-4">
+                                                    <!-- <div class="col-12 col-md-4">
                                                         <label class="form-label" for="{{ form.priority.id_for_label }}">{{ form.priority.label }}</label>
                                                         {{ form.priority }}
-                                                    </div>
+                                                    </div> -->
 
                                                     <div class="col-12 col-md-6">
                                                         <label class="form-label" for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>

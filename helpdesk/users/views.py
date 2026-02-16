@@ -1,7 +1,7 @@
 # users/views.py
 
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
@@ -27,16 +27,27 @@ def home(request):
 # -----------------------------
 @never_cache
 def register(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
-            return redirect('dashboard')
+
+            # 🔥 authenticate using email + password
+            user = authenticate(
+                request,
+                username=user.email,  # because your EmailBackend expects username=email
+                password=form.cleaned_data["password1"]
+            )
+
+            if user is not None:
+                login(request, user)
+
+            return redirect("dashboard")
+
     else:
         form = RegisterForm()
 
-    return render(request, 'users/register.html', {'form': form})
+    return render(request, "users/register.html", {"form": form})
 
 
 # -----------------------------

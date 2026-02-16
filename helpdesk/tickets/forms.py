@@ -5,8 +5,8 @@ from ict_support.models import Ticket, IssueCategory, IssueSubcategory
 class TicketForm(forms.ModelForm):
     class Meta:
         model = Ticket
-        fields = ['category', 'subcategory', 'priority', 'location', 'description']
-
+        #fields = ['category', 'subcategory', 'priority', 'location', 'description']
+        fields = ['category', 'subcategory', 'location', 'description']
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -28,7 +28,7 @@ class TicketForm(forms.ModelForm):
         widget_map = {
             'category': ('form-select', ''),
             'subcategory': ('form-select', ''),
-            'priority': ('form-select', ''),
+            #'priority': ('form-select', ''),
             'location': ('form-control', 'Location (building/room)'),
             'description': ('form-control', 'Describe the issue in detail'),
         }

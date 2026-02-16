@@ -40,7 +40,7 @@ class CustomUserCreationForm(forms.ModelForm):
             date_joined__date=timezone.now().date()
         ).count() + 1
 
-        user.username = f"{today}{count}"
+        user.username = f"st{today}{count}"
 
         user.set_password(self.cleaned_data["password1"])
 
