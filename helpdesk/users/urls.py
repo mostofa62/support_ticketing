@@ -2,7 +2,7 @@
 from django.urls import path
 from .views import home, register, dashboard, UserLoginView
 from django.contrib.auth.views import LogoutView
-from .views import dashboard_data
+from .views import dashboard_data, validate_email
 
 urlpatterns = [
     path('', home, name='home'),
@@ -11,4 +11,5 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
     path('dashboard/', dashboard, name='dashboard'),
     path('dashboard/data/', dashboard_data, name='dashboard_data'),
+    path("validate-email/", validate_email, name="validate_email"),
 ]

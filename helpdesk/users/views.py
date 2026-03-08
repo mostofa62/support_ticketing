@@ -12,7 +12,8 @@ from django.utils.decorators import method_decorator
 from .forms import RegisterForm, LoginForm
 from ict_support.models import Ticket, Notification
 from .decorators import group_required
-
+from django.db import transaction
+from django.contrib.auth.models import User
 
 # -----------------------------
 # Public home page
@@ -26,6 +27,7 @@ def home(request):
 # Registration view
 # -----------------------------
 @never_cache
+@transaction.atomic
 def register(request):
     if request.method == "POST":
         form = RegisterForm(request.POST)
@@ -146,3 +148,12 @@ def dashboard_data(request):
         })
 
     return JsonResponse(data, safe=False)
+
+
+def validate_email(request):
+    email = request.GET.get("username", None)
+
+    if User.objects.filter(username=email).exists():
+        return JsonResponse(False, safe=False)
+
+    return JsonResponse(True, safe=False)

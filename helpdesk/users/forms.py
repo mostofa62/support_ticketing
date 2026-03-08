@@ -1,4 +1,6 @@
 # users/forms.py
+import email
+
 from django import forms
 import re
 from django.contrib.auth.forms import UserCreationForm
@@ -8,7 +10,13 @@ from django.contrib.auth.forms import AuthenticationForm
 from django import forms
 
 class RegisterForm(UserCreationForm):
-    email = forms.EmailField()
+    username = forms.EmailField(
+        label="Email",
+        error_messages={
+            "required": "Email is required",
+            "invalid": "Enter a valid email address"
+        }
+    )
     phone_number = forms.RegexField(
         regex=r'^(?:015|016|013|019|018|017|014)\d{8}$',
         error_messages={
@@ -20,31 +28,48 @@ class RegisterForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password1', 'password2', 'first_name', 'last_name']
+        fields = ['username', 'password1', 'password2', 'first_name', 'last_name']
+        error_messages = {
+            'username': {
+                'unique': "This email is already registered.",
+            }
+        }
+
+    def clean_username(self):
+        email = self.cleaned_data.get('username')
+
+        if User.objects.filter(username=email).exists():
+            raise forms.ValidationError("This email is already registered.")
+
+        return email    
 
     def save(self, commit=True):
-        user = super().save(commit)
-        
-        # Save user profile
-        profile = UserProfile(
-            user=user,
-            phone_number=self.cleaned_data['phone_number'],
-            address=self.cleaned_data.get('address', ''),
-        )
-        profile.save()
-        
-        # Auto-create group "Submitter" if it doesn't exist
-        group, created = Group.objects.get_or_create(name='Submitter')
-        user.groups.add(group)
-        
+        user = super().save(commit=False)
+
+        # username is email → copy to email field
+        user.email = user.username
+
+        if commit:
+            user.save()
+
+            # create profile
+            UserProfile.objects.create(
+                user=user,
+                phone_number=self.cleaned_data['phone_number'],
+                address=self.cleaned_data.get('address', ''),
+            )
+
+            # assign group
+            group, _ = Group.objects.get_or_create(name='Submitter')
+            user.groups.add(group)
+
         return user
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Apply Bootstrap classes and placeholders
         field_map = {
-            'username': 'Username',
-            'email': 'Email',
+            'username': 'Email',
             'password1': 'Password',
             'password2': 'Confirm password',
             'first_name': 'First name',
