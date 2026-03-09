@@ -1,0 +1,94 @@
+{% extends "base_bootstrap_jquery.html" %}
+
+{% block title %}Dashboard — ICT Support{% endblock %}
+
+{% block extra_head %}
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Dashboard</h2>
+        {% if can_submit %}
+            <a class="btn btn-success" href="{% url 'create_ticket' %}">Submit New Ticket</a>
+        {% endif %}
+    </div>
+
+    
+
+    <div class="row">
+        <div class="col-12">
+            <h5>My Tickets</h5>
+            <table id="tickets-table" class="table table-striped" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Category</th>
+                        <th>Subcategory</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        // CSRF helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        $.ajaxSetup({ headers: { 'X-CSRFToken': csrftoken } });
+
+        $(document).ready(function(){
+            $('#tickets-table').DataTable({
+                ajax: {
+                    url: "{% url 'dashboard_data' %}",
+                    dataSrc: ''
+                },
+                columns: [
+                    { data: 'id' },
+                    { data: 'category' },
+                    { data: 'subcategory' },
+                    { data: 'status' },
+                    { data: 'date_created' },
+                    { data: null, orderable: false, render: function(data,type,row){
+                            if (row.detail_url) {
+                                return '<a class="btn btn-sm btn-primary" href="'+row.detail_url+'">View</a>';
+                            }
+                            return '';
+                        }
+                    }
+                ],
+                pageLength: 10,
+                responsive: true,
+                order: [[5, 'desc']],
+            });
+        });
+    </script>
+{% endblock %}

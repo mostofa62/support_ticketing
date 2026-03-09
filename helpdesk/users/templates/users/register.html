@@ -1,0 +1,212 @@
+{% extends "base_bootstrap_jquery.html" %}
+
+{% block title %}Register — ICT Support{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">Register</h3>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for err in form.non_field_errors %}{{ err }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" id="registerForm" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+                                {{ form.username }}
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for e in form.username.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+
+                                <label class="form-label" for="{{ form.phone_number.id_for_label }}">{{ form.phone_number.label }}</label>
+                                {{ form.phone_number }}
+                                {% if form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for e in form.phone_number.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                                </div>
+                                {% endif %}
+                               
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                                {{ form.first_name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+                                {{ form.password1 }}
+                                {% if form.password1.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for e in form.password1.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+                                {{ form.password2 }}
+                                {% if form.password2.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for e in form.password2.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.address.id_for_label }}">{{ form.address.label }}</label>
+                            {{ form.address }}
+                            {% if form.address.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.address.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="submit" class="btn btn-primary">Register</button>
+                            <a href="{% url 'login' %}" class="btn btn-link">Already have an account?</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+    <!-- jQuery Validation Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+
+    <script>
+    $(document).ready(function () {
+
+        // Custom Bangladesh phone validation
+        $.validator.addMethod("regexBD", function(value, element) {
+            return this.optional(element) || /^(?:015|016|013|019|018|017|014)\d{8}$/.test(value);
+        }, "Enter a valid phone number starting with 015/016/013/019/018/017/014 followed by 8 digits.");
+
+        // Minimum 8 chars
+        $.validator.addMethod("strongMinLength", function(value, element) {
+            return value.length >= 8;
+        }, "Password must be at least 8 characters long");
+
+        // Not fully numeric
+        $.validator.addMethod("notNumericOnly", function(value, element) {
+            return !/^\d+$/.test(value);
+        }, "Password cannot be entirely numeric");
+
+        // Optional: require letter + number (extra strong rule)
+        $.validator.addMethod("letterNumber", function(value, element) {
+            return /[A-Za-z]/.test(value) && /\d/.test(value);
+        }, "Password must contain letters and numbers");
+
+        $("#registerForm").validate({
+            rules: {
+                username: {
+                    required: true,
+                    email: true,
+                    remote: {
+                        url: "{% url 'validate_email' %}",
+                        type: "get"
+                    }
+                },
+                first_name: {
+                    required: true
+                },
+                last_name: {
+                    required: true
+                },
+                password1: {
+                    required: true,
+                    strongMinLength: true,
+                    notNumericOnly: true,
+                    letterNumber: true
+                },
+                password2: {
+                    required: true,
+                    equalTo: "#id_password1"
+                },
+                phone_number: {
+                    required: true,
+                    regexBD: true
+                },
+                address: {
+                    required: true,
+                    minlength: 5
+                }
+            },
+
+            messages: {
+                username: {
+                    required: "Email is required",
+                    email: "Enter a valid email",
+                    remote: "This email is already registered"
+                },
+                first_name: {
+                    required: "First name is required"
+                },
+                last_name: {
+                    required: "Last name is required"
+                },
+                password1: {
+                    required: "Password is required"
+                },
+                password2: {
+                    required:"Confirm password is required",
+                    equalTo: "Passwords do not match"
+                },
+                phone_number: {
+                    required: "Phone number is required"
+                },
+                address: {
+                    required: "Address is required",
+                    minlength: "Address must be at least 5 characters"
+                }
+            },
+
+            errorElement: "div",
+            errorClass: "invalid-feedback",
+
+            highlight: function (element) {
+                $(element).addClass("is-invalid");
+            },
+
+            unhighlight: function (element) {
+                $(element).removeClass("is-invalid");
+            },
+
+            errorPlacement: function (error, element) {
+                error.insertAfter(element);
+            }
+        });
+
+    });
+    </script>
+
+{% endblock %}

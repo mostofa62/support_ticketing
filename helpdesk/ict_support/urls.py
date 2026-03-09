@@ -15,8 +15,40 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+from django.conf import settings
+from django.conf.urls.static import static
+# Adds site header, site title, index title to the admin side.
+admin.site.site_header = 'ICT Support Admin'
+admin.site.site_title = 'ICT Support'
+admin.site.index_title = 'Welcome ICT Support'
+
+from ict_support.forms import AdminLoginForm
+
+admin.site.login_form = AdminLoginForm
+
+# Optional: Custom admin logout view
+from django.contrib.auth import logout
+from django.shortcuts import redirect
+from django.contrib.admin.views.decorators import staff_member_required
+
+@staff_member_required
+def admin_logout(request):
+    logout(request)
+    return redirect('/admin/login/')
+
 
 urlpatterns = [
+    path('admin/logout/', admin_logout, name='admin_logout'),
     path('admin/', admin.site.urls),
+    path('', include('users.urls')),
+    path('tickets/', include('tickets.urls')),
 ]
+
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(
+        settings.MEDIA_URL,
+        document_root=settings.MEDIA_ROOT
+    )
