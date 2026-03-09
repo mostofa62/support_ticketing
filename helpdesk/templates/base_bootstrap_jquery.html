@@ -49,6 +49,8 @@
                           </a>
                           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                             <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'password_change' %}">Change Password</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                               <form method="post" action="{% url 'logout' %}" class="m-0">

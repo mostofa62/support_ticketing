@@ -1,7 +1,7 @@
 # users/views.py
 
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
@@ -9,12 +9,12 @@ from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 
-from .forms import RegisterForm, LoginForm
+from .forms import CustomSetPasswordForm, ProfileUpdateForm, RegisterForm, LoginForm
 from ict_support.models import Ticket, Notification
 from .decorators import group_required
 from django.db import transaction
 from django.contrib.auth.models import User
-
+from django.contrib import messages
 # -----------------------------
 # Public home page
 # -----------------------------
@@ -157,3 +157,49 @@ def validate_email(request):
         return JsonResponse(False, safe=False)
 
     return JsonResponse(True, safe=False)
+
+
+@login_required
+def profile(request):
+
+    if request.method == "POST":
+        form = ProfileUpdateForm(
+            request.POST,
+            user=request.user,
+            instance=request.user
+        )
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect("profile")
+        else:
+            messages.error(request, "Please fix the errors below.")
+
+    else:
+        form = ProfileUpdateForm(
+            user=request.user,
+            instance=request.user
+        )
+
+    return render(request, "users/profile.html", {"form": form})
+
+
+
+@login_required
+def change_password(request):
+    if request.method == "POST":
+        form = CustomSetPasswordForm(request.user, request.POST)
+
+        if form.is_valid():
+            user = form.save()
+
+            # keep user logged in
+            update_session_auth_hash(request, user)
+
+            messages.success(request, "Password changed successfully!")
+            return redirect("password_change")
+    else:
+        form = CustomSetPasswordForm(request.user)
+
+    return render(request, "users/password_change.html", {"form": form})
