@@ -1,8 +1,8 @@
 # users/urls.py
 from django.urls import path
 
-from .forms import CustomPasswordChangeForm
-from .views import home, register, dashboard, UserLoginView
+# from .forms import CustomPasswordChangeForm
+from .views import home, password_reset_confirm, password_reset_new_password, password_reset_request, password_reset_verify_otp, register, dashboard, UserLoginView
 from django.contrib.auth.views import LogoutView
 from .views import dashboard_data, validate_email, profile, change_password
 from django.contrib.auth import views as auth_views
@@ -34,6 +34,9 @@ urlpatterns = [
     #     name="password_change_done",
     # ),
     # '''
-    
+    path('password-reset/verify-otp/', password_reset_verify_otp, name='password_reset_verify_otp'),
+    path('password-reset/new-password/', password_reset_new_password , name='password_reset_new_password'),
+    path('reset-password/', password_reset_request, name='password_reset_request'),
+    path('reset-password-confirm/<str:uidb64>/<str:token>/', password_reset_confirm, name='password_reset_confirm'),
     
 ]

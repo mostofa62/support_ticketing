@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.utils import timezone
-from .models import IssueCategory, IssueSubcategory, Ticket, StaffMember, Attachment, Notification
+from .models import IssueCategory, IssueSubcategory, Ticket, Attachment, PasswordResetConfig
 
 from django.db.models import Count
 from django.utils.html import format_html
@@ -87,8 +87,7 @@ class AttachmentInline(admin.TabularInline):
 
 admin.site.register(IssueCategory)
 admin.site.register(IssueSubcategory)
-#admin.site.register(StaffMember)
-#admin.site.register(Notification)
+
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
@@ -173,4 +172,10 @@ class TicketAdmin(admin.ModelAdmin):
     inlines = [AttachmentInline]
 
 class TicketAttachmentAdmin(admin.ModelAdmin):
+    pass
+
+
+from solo.admin import SingletonModelAdmin
+@admin.register(PasswordResetConfig)
+class PasswordResetConfigAdmin(SingletonModelAdmin):
     pass

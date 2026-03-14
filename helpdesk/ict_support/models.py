@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.forms import ValidationError
 
 from .validators import validate_file_size,validate_mime_type
 from .choices import STATUS_CHOICES, PRIORITY_CHOICES, TicketStatus, TicketPriority
@@ -59,17 +60,6 @@ class Ticket(models.Model):
         return f"{self.id} - {self.category.name} - {self.status}"
 
 # -------------------
-# Staff Members (optional)
-# -------------------
-class StaffMember(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    department = models.CharField(max_length=100, blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.user.username
-
-# -------------------
 # Attachments
 # -------------------
 class Attachment(models.Model):
@@ -98,28 +88,19 @@ class Attachment(models.Model):
         if self.file:
             return self.file.name
         return f"Attachment #{self.pk}"
+    
+from solo.models import SingletonModel
+class PasswordResetConfig(SingletonModel):
+    enable_email = models.BooleanField(default=True)
+    enable_sms = models.BooleanField(default=False)
+    enable_app = models.BooleanField(default=False)
 
-
-# -------------------
-# Notifications
-# -------------------
-class Notification(models.Model):
-    EVENT_TYPES = [
-        ('ticket_created', 'Ticket Created'),
-        ('ticket_assigned', 'Ticket Assigned'),
-        ('ticket_resolved', 'Ticket Resolved'),
-    ]
-    MESSAGE_TYPES = [
-        ('email', 'Email'),
-        ('in_app', 'In App'),
-    ]
-
-    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
-    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='notifications')
-    event_type = models.CharField(max_length=50, choices=EVENT_TYPES)
-    message_type = models.CharField(max_length=50, choices=MESSAGE_TYPES)
-    status = models.BooleanField(default=False)
-    date_sent = models.DateTimeField(auto_now_add=True)
+    def clean(self):
+        """Ensure at least one method is enabled."""
+        if not (self.enable_email or self.enable_sms or self.enable_app):
+            raise ValidationError(
+                "At least one password reset method (Email, SMS, App) must be enabled."
+            )
 
     def __str__(self):
-        return f"Notification {self.id} -> {self.recipient.username}"
+        return "Password Reset Configuration"

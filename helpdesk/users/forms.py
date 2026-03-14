@@ -149,7 +149,7 @@ class RegisterForm(UserCreationForm):
             )
 
             # assign group
-            group, _ = Group.objects.get_or_create(name='Submitter')
+            group, _ = Group.objects.get_or_create(name='Client')
             user.groups.add(group)
 
         return user
@@ -209,33 +209,7 @@ class LoginForm(AuthenticationForm):
             'id': 'id_password',
             'autocomplete': 'current-password',
         })
-
-    def clean(self):
-        username_or_email = self.cleaned_data.get('username')
-        password = self.cleaned_data.get('password')
-
-        if username_or_email and password:
-            # If input looks like an email, fetch the username
-            if '@' in username_or_email:
-                try:
-                    user_obj = User.objects.get(email=username_or_email)
-                    username = user_obj.username
-                except User.DoesNotExist:
-                    raise forms.ValidationError("Invalid email or password")
-            else:
-                username = username_or_email
-
-            # Authenticate with resolved username
-            self.user_cache = authenticate(
-                self.request, username=username, password=password
-            )
-            if self.user_cache is None:
-                raise forms.ValidationError("Invalid email or password")
-            else:
-                self.confirm_login_allowed(self.user_cache)
-
-        return self.cleaned_data
-
+        self.error_messages['invalid_login'] = "Invalid email or password."
 
 
 class CustomPasswordChangeForm(PasswordChangeForm):
@@ -256,3 +230,102 @@ class CustomSetPasswordForm(SetPasswordForm):
 
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-control"
+
+
+class PasswordResetRequestForm(forms.Form):
+    email = forms.EmailField(
+        label="Your Email",
+        max_length=254,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Enter your email'})
+    )
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if not User.objects.filter(email=email).exists():
+            raise forms.ValidationError("No user is registered with this email address")
+        return email
+    
+class SetNewPasswordForm(forms.Form):
+    new_password = forms.CharField(
+        label="New Password",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Enter new password'})
+    )
+    confirm_password = forms.CharField(
+        label="Confirm Password",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm new password'})
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('new_password') != cleaned_data.get('confirm_password'):
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned_data
+    
+
+from ict_support.models import PasswordResetConfig
+
+def get_password_reset_choices():
+    config = PasswordResetConfig.get_solo()
+    choices = []
+    if config.enable_email:
+        choices.append(('email', 'Email'))
+    if config.enable_sms:
+        choices.append(('sms', 'SMS'))
+    if config.enable_app:
+        choices.append(('app', 'App'))
+    return choices
+
+class PasswordResetChoiceForm(forms.Form):
+    email_or_phone = forms.CharField(
+        label="Email or Phone",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter your email or phone'})
+    )
+    method = forms.ChoiceField(
+        choices=[],  # empty here
+        widget=forms.RadioSelect
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # dynamically set choices every time the form is created
+        self.fields['method'].choices = get_password_reset_choices()
+
+       
+
+        # Dynamically adjust label and placeholder based on enabled methods
+        choices = [c[0] for c in get_password_reset_choices()]
+
+         # Expose enabled methods to template/JS
+        self.enabled_methods = choices
+        
+        label_parts = []
+        placeholder_parts = []
+
+        if 'email' in choices:
+            label_parts.append("Email")
+            placeholder_parts.append("email")
+        if 'sms' in choices:
+            label_parts.append("Phone")
+            placeholder_parts.append("phone number")
+
+        label_text = " or ".join(label_parts) if label_parts else "Email or Phone"
+        placeholder_text = " or ".join(placeholder_parts) if placeholder_parts else "Enter your email or phone"
+
+        self.fields['email_or_phone'].label = label_text
+        self.fields['email_or_phone'].widget.attrs['placeholder'] = placeholder_text
+
+    def clean(self):
+        cleaned_data = super().clean()
+        value = cleaned_data.get('email_or_phone')
+
+        if not value:
+            return cleaned_data
+
+        if '@' in value:
+            if not User.objects.filter(email=value).exists():
+                self.add_error('email_or_phone', "No user with this email.")
+        else:
+            if not User.objects.filter(userprofile__phone_number=value).exists():
+                self.add_error('email_or_phone', "No user with this phone number.")
+
+        return cleaned_data

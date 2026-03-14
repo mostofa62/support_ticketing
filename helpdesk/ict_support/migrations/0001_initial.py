@@ -33,15 +33,6 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name='StaffMember',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('department', models.CharField(blank=True, max_length=100, null=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
-            ],
-        ),
-        migrations.CreateModel(
             name='Ticket',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -56,18 +47,6 @@ class Migration(migrations.Migration):
                 ('category', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='ict_support.issuecategory')),
                 ('subcategory', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='ict_support.issuesubcategory')),
                 ('submitter', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='submitted_tickets', to=settings.AUTH_USER_MODEL)),
-            ],
-        ),
-        migrations.CreateModel(
-            name='Notification',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('event_type', models.CharField(choices=[('ticket_created', 'Ticket Created'), ('ticket_assigned', 'Ticket Assigned'), ('ticket_resolved', 'Ticket Resolved')], max_length=50)),
-                ('message_type', models.CharField(choices=[('email', 'Email'), ('in_app', 'In App')], max_length=50)),
-                ('status', models.BooleanField(default=False)),
-                ('date_sent', models.DateTimeField(auto_now_add=True)),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL)),
-                ('ticket', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to='ict_support.ticket')),
             ],
         ),
         migrations.CreateModel(

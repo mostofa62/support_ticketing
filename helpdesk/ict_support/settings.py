@@ -62,7 +62,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'ict_support',
     'users', 
-    'tickets'
+    'tickets',
+    'notifications',
+    'solo',
 ]
 
 MIDDLEWARE = [
@@ -155,3 +157,24 @@ AUTHENTICATION_BACKENDS = [
     'ict_support.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'   # Redis broker
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Dhaka'
+CELERY_ENABLE_UTC = True
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "localhost"
+EMAIL_PORT = 1025
+EMAIL_USE_TLS = False
+
+
+MOBIREACH_USERNAME = env("MOBIREACH_USERNAME")
+MOBIREACH_PASSWORD = env("MOBIREACH_PASSWORD")
+MOBIREACH_SENDER = env("MOBIREACH_SENDER")
+MOBIREACH_URL = env("MOBIREACH_URL")

@@ -1,5 +1,8 @@
 # users/views.py
 
+from email.utils import localtime
+import random
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
@@ -8,9 +11,13 @@ from django.urls import reverse_lazy
 from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 
-from .forms import CustomSetPasswordForm, ProfileUpdateForm, RegisterForm, LoginForm
-from ict_support.models import Ticket, Notification
+from .models import PasswordResetOTP
+from notifications.services.notification_service import create_notification
+
+from .forms import CustomSetPasswordForm, PasswordResetChoiceForm, PasswordResetRequestForm, ProfileUpdateForm, RegisterForm, LoginForm, SetNewPasswordForm
+from ict_support.models import Ticket
 from .decorators import group_required
 from django.db import transaction
 from django.contrib.auth.models import User
@@ -39,6 +46,17 @@ def register(request):
                 request,
                 username=user.email,  # because your EmailBackend expects username=email
                 password=form.cleaned_data["password1"]
+            )
+            
+            create_notification(
+                user=user,
+                event_type="user_registered",
+                channel="email",
+                data={
+                    "full_name": user.get_full_name(),
+                    "email": user.email,
+                    "message": "Thank you for registering! You can now submit support tickets and track their status."
+                }
             )
 
             if user is not None:
@@ -80,7 +98,7 @@ class UserLoginView(LoginView):
     def get_success_url(self):
         user = self.request.user
 
-        if user.groups.filter(name='Submitter').exists():
+        if user.groups.filter(name='Client').exists():
             return reverse_lazy('dashboard')
 
         return reverse_lazy('admin:index')
@@ -97,27 +115,23 @@ def user_logout(request):
 
 
 # -----------------------------
-# Dashboard (Submitter only)
+# Dashboard (Client only)
 # -----------------------------
 @never_cache
 @login_required
-@group_required('Submitter')
+@group_required('Client')
 def dashboard(request):
     profile = request.user.userprofile
     tickets = Ticket.objects.filter(
         submitter=request.user
     ).order_by('-date_created')
 
-    notifications = Notification.objects.filter(
-        recipient=request.user,
-        status=False
-    ).order_by('-date_sent')
+    
 
     can_submit = getattr(profile, 'is_active_submitter', True)
 
     return render(request, 'users/dashboard.html', {
         'tickets': tickets,
-        'notifications': notifications,
         'can_submit': can_submit
     })
 
@@ -127,7 +141,7 @@ def dashboard(request):
 # -----------------------------
 @never_cache
 @login_required
-@group_required('Submitter')
+@group_required('Client')
 def dashboard_data(request):
     qs = Ticket.objects.filter(
         submitter=request.user
@@ -203,3 +217,137 @@ def change_password(request):
         form = CustomSetPasswordForm(request.user)
 
     return render(request, "users/password_change.html", {"form": form})
+
+
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes
+
+def password_reset_request(request):
+    if request.method == 'POST':
+        form = PasswordResetChoiceForm(request.POST)
+        if form.is_valid():
+            method = form.cleaned_data['method']
+            value = form.cleaned_data['email_or_phone']
+
+            if method == 'email':
+                user = User.objects.get(email=value)
+
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+                create_notification(
+                    user=user,
+                    event_type='password_reset',
+                    channel='email',
+                    data={
+                        'full_name': user.get_full_name(),
+                        'email': user.email,
+                        'reset_link': request.build_absolute_uri(
+                            reverse_lazy('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+                        )
+                    }
+                )
+                messages.success(request, "Password reset instructions will be sent via email notifications.")
+
+            else:  # SMS
+                user = User.objects.get(userprofile__phone_number=value)
+                otp = f"{random.randint(100000, 999999)}"
+                PasswordResetOTP.objects.create(
+                    user=user,
+                    phone_number=user.userprofile.phone_number,
+                    otp=otp
+                )
+
+                create_notification(
+                    user=user,
+                    event_type='password_reset_sms',
+                    channel='sms',
+                    data={
+                        'full_name': user.get_full_name(),
+                        'phone_number': user.userprofile.phone_number,
+                        'otp': otp
+                    }
+                )
+                messages.success(request, "OTP sent to your phone number.")
+                request.session['reset_phone'] = user.userprofile.phone_number
+                return redirect('password_reset_verify_otp')
+
+            return redirect('login')
+    else:
+        form = PasswordResetChoiceForm()
+    return render(request, 'users/password_reset_choice.html', {'form': form})
+# Step 2: Reset password confirmation
+def password_reset_confirm(request, uidb64, token):
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is None or not default_token_generator.check_token(user, token):
+        messages.error(request, "Invalid or expired link.")
+        return redirect('password_reset_request')
+
+    if request.method == 'POST':
+        form = SetNewPasswordForm(request.POST)
+        if form.is_valid():
+            user.password = make_password(form.cleaned_data['new_password'])
+            user.save()
+            messages.success(request, "Password has been reset successfully.")
+            return redirect('login')
+    else:
+        form = SetNewPasswordForm()
+
+    return render(request, 'users/password_reset_confirm.html', {'form': form})
+
+
+
+def password_reset_verify_otp(request):
+    phone = request.session.get('reset_phone')
+    if not phone:
+        return redirect('password_reset_request')
+
+    user = User.objects.get(userprofile__phone_number=phone)
+    otp_obj = PasswordResetOTP.objects.filter(user=user, used=False).last()
+
+    if request.method == "POST":
+        otp = request.POST.get("otp")
+        if otp_obj and otp_obj.otp == otp and otp_obj.expired_at > timezone.now():
+            otp_obj.used = True
+            otp_obj.save()
+            request.session['reset_user_id'] = user.id
+            request.session['otp_verified'] = True
+            return redirect('password_reset_new_password')
+        messages.error(request, "Invalid or expired OTP")
+
+    context = {}
+    if otp_obj:
+        # Convert to string for JS
+        context['otp_expiry'] = localtime(otp_obj.expired_at).strftime('%Y-%m-%d %H:%M:%S')
+
+    return render(request, "users/verify_otp.html", context)
+
+
+def password_reset_new_password(request):
+    user_id = request.session.get('reset_user_id')
+    verified = request.session.get('otp_verified')
+
+    if not user_id or not verified:
+        messages.error(request, "User not verified.")
+        return redirect('password_reset_request')
+
+    user = User.objects.get(id=user_id)
+
+    if request.method == 'POST':
+        form = SetNewPasswordForm(request.POST)
+        if form.is_valid():
+            user.password = make_password(form.cleaned_data['new_password'])
+            user.save()
+            messages.success(request, "Password has been reset successfully.")
+            return redirect('login')
+    else:
+        form = SetNewPasswordForm()
+
+    return render(request, "users/password_reset_confirm.html", {'form': form})
