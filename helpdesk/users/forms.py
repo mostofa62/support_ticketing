@@ -137,16 +137,19 @@ class RegisterForm(UserCreationForm):
 
         # username is email → copy to email field
         user.email = user.username
+        user.phone_number = self.cleaned_data.get("phone_number")
+        user.address = self.cleaned_data.get("address")
+        user.is_email_verified = True if user.email.endswith('@cu.ac.bd') else False
 
         if commit:
             user.save()
 
-            # create profile
-            UserProfile.objects.create(
-                user=user,
-                phone_number=self.cleaned_data['phone_number'],
-                address=self.cleaned_data.get('address', ''),
-            )
+            # # create profile
+            # UserProfile.objects.create(
+            #     user=user,
+            #     phone_number=self.cleaned_data['phone_number'],
+            #     address=self.cleaned_data.get('address', ''),
+            # )
 
             # assign group
             group, _ = Group.objects.get_or_create(name='Client')

@@ -53,7 +53,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    
+    'users', 
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'ict_support',
-    'users', 
+    
     'tickets',
     'notifications',
     'solo',
@@ -160,18 +160,20 @@ AUTHENTICATION_BACKENDS = [
 
 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'   # Redis broker
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Dhaka'
-CELERY_ENABLE_UTC = True
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/1")
+CELERY_ACCEPT_CONTENT = env("CELERY_ACCEPT_CONTENT", default="json").split(",")
+CELERY_TASK_SERIALIZER = env("CELERY_TASK_SERIALIZER", default="json")
+CELERY_RESULT_SERIALIZER = env("CELERY_RESULT_SERIALIZER", default="json")
+CELERY_TIMEZONE = env("CELERY_TIMEZONE", default="Asia/Dhaka")
+CELERY_ENABLE_UTC = env("CELERY_ENABLE_UTC", default="True").lower() in ("true", "1", "yes")
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "localhost"
-EMAIL_PORT = 1025
-EMAIL_USE_TLS = False
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST",default= "localhost")
+EMAIL_PORT = int(env("EMAIL_PORT", default="1025"))
+EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=False)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="no-reply@example.com")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD",default= "")
 
 
 MOBIREACH_USERNAME = env("MOBIREACH_USERNAME")

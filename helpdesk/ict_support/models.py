@@ -17,6 +17,10 @@ class IssueCategory(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
 
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
     def __str__(self):
         return self.name
 
@@ -24,6 +28,10 @@ class IssueSubcategory(models.Model):
     category = models.ForeignKey(IssueCategory, on_delete=models.CASCADE, related_name='subcategories')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Subcategory"
+        verbose_name_plural = "Subcategories"
 
     def __str__(self):
         return f"{self.category.name} -> {self.name}"
@@ -95,6 +103,10 @@ class PasswordResetConfig(SingletonModel):
     enable_sms = models.BooleanField(default=False)
     enable_app = models.BooleanField(default=False)
 
+    class Meta:
+        verbose_name = "Password Reset Configuration"
+        verbose_name_plural = "Password Reset Configuration"
+
     def clean(self):
         """Ensure at least one method is enabled."""
         if not (self.enable_email or self.enable_sms or self.enable_app):
@@ -104,3 +116,16 @@ class PasswordResetConfig(SingletonModel):
 
     def __str__(self):
         return "Password Reset Configuration"
+
+from django.contrib.auth.models import User
+class StaffUser(User):
+    class Meta:
+        proxy = True
+        verbose_name = 'Staff'
+        verbose_name_plural = 'Staff'
+
+class ClientUser(User):
+    class Meta:
+        proxy = True
+        verbose_name = 'Client'
+        verbose_name_plural = 'Clients'

@@ -1,7 +1,9 @@
 # ict_support/signals.py
-from django.db.models.signals import post_delete, pre_save
+from django.db.models.signals import post_delete, pre_save, post_save
 from django.dispatch import receiver
 from .models import Attachment  # your model
+from users.models import UserProfile
+from django.contrib.auth.models import User
 
 @receiver(post_delete, sender=Attachment)
 def delete_file_on_delete(sender, instance, **kwargs):
@@ -23,3 +25,23 @@ def delete_old_file_on_change(sender, instance, **kwargs):
     new_file = instance.file
     if old_file and old_file != new_file:
         old_file.delete(False)
+
+
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if created:
+        # Create profile with default values
+        UserProfile.objects.create(
+            user=instance,
+            phone_number=getattr(instance, 'phone_number', ''),
+            address=getattr(instance, 'address', ''),
+            is_email_verified = getattr(instance, 'is_email_verified', False)
+        )
+    else:
+        # Update profile if needed
+        profile = getattr(instance, 'userprofile', None)
+        if profile:
+            profile.phone_number = getattr(instance, 'phone_number', profile.phone_number)
+            profile.address = getattr(instance, 'address', profile.address)
+            profile.is_email_verified = getattr(instance, 'is_email_verified', profile.is_email_verified)
+            profile.save()

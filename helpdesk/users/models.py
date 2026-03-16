@@ -4,8 +4,8 @@ from django.db import models
 from django.core.validators import RegexValidator
 # Bangladesh phone number validator
 phone_regex = RegexValidator(
-    regex=r'^\+?88\d{10}$',
-    message="Phone number must be entered in the format: '+8801XXXXXXXXX'"
+    regex=r'^(?:015|016|013|019|018|017|014)\d{8}$',
+    message="Enter a valid phone number starting with 015/016/013/019/018/017/014 followed by 8 digits."
 )
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

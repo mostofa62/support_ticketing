@@ -6,7 +6,7 @@ from .models import Notification
 
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
-
+from django.conf import settings
 @shared_task(bind=True, max_retries=3)
 def send_notification(self, notification_id):
 
@@ -25,7 +25,7 @@ def send_notification(self, notification_id):
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=body_html,  # fallback for plain text
-                from_email="no-reply@example.com",
+                from_email=settings.EMAIL_HOST_USER,
                 to=[notification.data.get("email")],
             )
             email.attach_alternative(body_html, "text/html")

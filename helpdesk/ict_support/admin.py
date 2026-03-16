@@ -1,70 +1,109 @@
 from django import forms
 from django.contrib import admin
 from django.utils import timezone
-from .models import IssueCategory, IssueSubcategory, Ticket, Attachment, PasswordResetConfig
+from .models import IssueCategory, IssueSubcategory, Ticket, Attachment, PasswordResetConfig, StaffUser, ClientUser
 
 from django.db.models import Count
 from django.utils.html import format_html
 from django.urls import reverse
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin
+from .forms import CustomUserCreationForm, CustomUserChangeForm
+from users.models import UserProfile
 
-class CustomUserCreationForm(forms.ModelForm):
-    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Confirm Password', widget=forms.PasswordInput)
+original_get_app_list = admin.site.get_app_list
 
-    class Meta:
-        model = User
-        fields = ('email',)
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if not email:
-            raise forms.ValidationError("Email is required.")
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("Email already exists.")
-        return email
 
-    def clean(self):
-        cleaned_data = super().clean()
-        if cleaned_data.get("password1") != cleaned_data.get("password2"):
-            raise forms.ValidationError("Passwords do not match.")
-        return cleaned_data
+def custom_get_app_list(request):
+    app_list = original_get_app_list(request)
 
-    def save(self, commit=True):
-        user = super().save(commit=False)
+    # ---- Reorder apps ----
+    desired_app_order = ['ict_support','auth']  # Replace 'myapp' with your app label
+    app_list.sort(
+        key=lambda x: desired_app_order.index(x['app_label']) if x['app_label'] in desired_app_order else 100
+    )
 
-        # 🔥 Auto generate username
-        today = timezone.now().strftime('%Y%m%d')
-        count = User.objects.filter(
-            date_joined__date=timezone.now().date()
-        ).count() + 1
+    # ---- Reorder models inside each app ----
+    model_order_map = {
+        'auth': ['User', 'Group'],
+        'ict_support': ['Ticket', 'IssueCategory','IssueSubcategory','PasswordResetConfig'],  # Replace 'myapp' with your app label
+    }
 
-        user.username = f"st{today}{count}"
+    for app in app_list:
+        if app['app_label'] in model_order_map:
+            desired_model_order = model_order_map[app['app_label']]
+            app['models'].sort(
+                key=lambda x: desired_model_order.index(x['object_name'])
+                if x['object_name'] in desired_model_order else 100
+            )
 
-        user.set_password(self.cleaned_data["password1"])
+    return app_list
 
-        if commit:
-            user.save()
-        return user
+admin.site.get_app_list = custom_get_app_list
+
+
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = 'Profile'
+    fk_name = 'user'
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
+    form = CustomUserChangeForm 
+    inlines = (UserProfileInline,)
+
+    def get_inline_instances(self, request, obj=None):
+        # Only show the UserProfileInline when editing an existing user
+        if not obj:
+            return []  # don't show inline on add page
+        return super().get_inline_instances(request, obj)
+
+    # keep the default fieldsets for User
+    fieldsets = (
+        (None, {'fields': ('username',)}),
+        ('Personal info', {'fields': ('first_name', 'last_name')}),
+        ('Change Password', {'fields': ( "password1", "password2")}),
+        #('Permissions', {'fields': ('is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Permissions', {'fields': ('is_staff', 'is_superuser', 'groups')}),
+        #('Important dates', {'fields': ('last_login', 'date_joined')}),
+        ('Important dates', {'fields': ('date_joined',)}),
+    )
+
+    # Change username label
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['username'].label = "Email"
+        # Add custom error messages if you want (optional)
+        form.base_fields['username'].error_messages = {
+            "required": "Email is required",
+            "invalid": "Enter a valid email address"
+        }
+        return form
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password1', 'password2'),
+            'fields': (
+                'username', 
+                'first_name',
+                'last_name',
+                'phone_number',
+                'address',
+                'groups', 
+                'is_staff',
+                'password1', 
+                'password2'
+            ),
         }),
     )
+    filter_horizontal = ("groups",)
 
-    fieldsets = (
-        (None, {'fields': ('username', 'email', 'password')}),
-        ('Permissions', {'fields': ('is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Important dates', {'fields': ('last_login', 'date_joined')}),
-    )
+
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
 
 class AttachmentInline(admin.TabularInline):
     model = Attachment
@@ -179,3 +218,45 @@ from solo.admin import SingletonModelAdmin
 @admin.register(PasswordResetConfig)
 class PasswordResetConfigAdmin(SingletonModelAdmin):
     pass
+
+
+
+@admin.register(StaffUser)
+class StaffUserAdmin(UserAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(groups__name="Staff")
+
+    # disable add/edit/delete
+    def has_add_permission(self, request):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+    # Customize list display — hide is_staff
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active')
+
+    # Remove filter sidebar items
+    list_filter = ('is_active',)  # empty tuple disables all default filters
+
+@admin.register(ClientUser)
+class ClientUserAdmin(UserAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(groups__name="Client")
+
+    # disable add/edit/delete
+    def has_add_permission(self, request):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+    # Customize list display — hide is_staff
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active')
+
+    # Remove filter sidebar items
+    list_filter = ('is_active',)  # empty tuple disables all default filters
