@@ -1,0 +1,71 @@
+{% extends "base_bootstrap_jquery.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">My Profile</h3>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for err in form.non_field_errors %}{{ err }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                        </div>
+                    {% endif %}
+
+                        <form method="post">
+                            {% csrf_token %}
+
+                            <div class="mb-3">
+                                <label>Email</label>
+                                {{ form.username }}
+                            </div>
+
+                            <div class="mb-3">
+                                <label>First Name</label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}<div class="text-danger">{{ form.first_name.errors }}</div>{% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label>Last Name</label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}<div class="text-danger">{{ form.last_name.errors }}</div>{% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label>Phone Number</label>
+                                {{ form.phone_number }}
+                                {% if form.phone_number.errors %}<div class="text-danger">{{ form.phone_number.errors }}</div>{% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label>Address</label>
+                                {{ form.address }}
+                                {% if form.address.errors %}<div class="text-danger">{{ form.address.errors }}</div>{% endif %}
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-12 col-md-6 mb-2 mb-md-0">
+                                    <button class="btn btn-primary w-100">Update Profile</button>
+                                </div>
+                                <div class="col-12 col-md-6 text-md-end">
+                                    <a href="{% url 'password_change' %}" class="btn btn-warning w-100 w-md-auto">Change Password</a>
+                                </div>
+                            </div>
+                   
+
+                        </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

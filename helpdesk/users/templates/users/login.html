@@ -37,6 +37,9 @@
                                     {% for e in form.password.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
                                 </div>
                             {% endif %}
+                            <div class="text-end mt-1">
+                                <a href="{% url 'password_reset_request' %}" class="small">Forgot Password?</a>
+                            </div>
                         </div>
 
                         <div class="mb-3 form-check">

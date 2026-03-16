@@ -1,0 +1,1 @@
+Welcome {{ full_name }} to ICT Support Portal!

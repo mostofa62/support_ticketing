@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 
 from ict_support import settings
 from .forms import TicketForm
-from ict_support.models import Ticket, Notification, Attachment
+from ict_support.models import Ticket, Attachment
 from .decorators import group_required
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -16,7 +16,7 @@ from .models import TempAttachment
 
 @never_cache
 @login_required
-@group_required('Submitter')
+@group_required('Client')
 def create_ticket(request):
     if not request.user.userprofile.is_active_submitter:
         return redirect('dashboard')  # user is blocked from submitting tickets
@@ -50,13 +50,7 @@ def create_ticket(request):
 
                 temp.delete()
             
-            # create notification for submitter
-            Notification.objects.create(
-                recipient=request.user,
-                ticket=ticket,
-                event_type='ticket_created',
-                message_type='in_app'
-            )
+            
             return redirect('dashboard')
     else:
         form = TicketForm()

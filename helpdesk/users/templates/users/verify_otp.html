@@ -1,0 +1,77 @@
+{% extends "base_bootstrap_jquery.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title text-center mb-4">Verify OTP</h3>
+
+                   
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="otp" class="form-label">Enter OTP</label>
+                            <input type="text" name="otp" id="otp" maxlength="6" required class="form-control"
+                                placeholder="Enter 6-digit OTP">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Verify OTP</button>
+                    </form>
+
+                    <p class="mt-3 text-center text-muted">
+                        OTP expires in <span id="otp-timer">--:--</span>
+                    </p>
+
+                    <p class="mt-2 text-center text-muted">
+                        Didn't receive OTP?
+                        <a href="{% url 'password_reset_request' %}" id="resend-link" class="disabled"
+                            style="pointer-events: none; opacity: 0.5;">Resend</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_scripts %}
+
+<script>
+    $(document).ready(function () {
+        var expiryTime = new Date("{{ otp_expiry }}").getTime();
+        var $resendLink = $('#resend-link');
+
+        function updateTimer() {
+            var now = new Date().getTime();
+            var distance = expiryTime - now;
+
+            if (distance < 0) {
+                clearInterval(timerInterval);
+                $('#otp-timer').text("Expired");
+
+                // Enable resend link
+                $resendLink.removeClass('disabled');
+                $resendLink.css({ 'pointer-events': 'auto', 'opacity': 1 });
+                return;
+            }
+
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            $('#otp-timer').text(
+                (minutes < 10 ? "0" + minutes : minutes) + ":" +
+                (seconds < 10 ? "0" + seconds : seconds)
+            );
+        }
+
+        updateTimer();
+        var timerInterval = setInterval(updateTimer, 1000);
+    });
+</script>
+
+{% endblock %}
