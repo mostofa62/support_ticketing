@@ -64,7 +64,7 @@
                                                     <h5>Attachments (Max 2)</h5>
                                                     
                                                     <input type="file" id="fileInput" class="form-control mb-3">
-                                                    
+                                                    <div id="fileError" class="text-danger mb-3"></div>
                                                     <div id="uploadList"></div>
                                                     
                                                     <script>
@@ -104,21 +104,24 @@
                                                             });
 
                                                             xhr.onload = function () {
+                                                                const fileError = document.getElementById('fileError');
+                                                                fileError.textContent = '';  // clear previous error
+
                                                                 if (xhr.status === 200) {
                                                                     const response = JSON.parse(xhr.responseText);
 
                                                                     progressInner.classList.add('bg-success');
 
-                                                                                                                                        const fileRow = document.createElement('div');
-                                                                                                                                        fileRow.className = 'row g-2 align-items-center mt-2';
-                                                                                                                                        fileRow.innerHTML = `
-                                                                                                                                            <div class="col-12 col-md-8 mb-1 mb-md-0">
-                                                                                                                                                <span class="text-break">${response.file_name}</span>
-                                                                                                                                            </div>
-                                                                                                                                            <div class="col-12 col-md-4 text-md-end">
-                                                                                                                                                <button class="btn btn-sm btn-danger w-100 w-md-auto">Delete</button>
-                                                                                                                                            </div>
-                                                                                                                                        `;
+                                                                    const fileRow = document.createElement('div');
+                                                                    fileRow.className = 'row g-2 align-items-center mt-2';
+                                                                    fileRow.innerHTML = `
+                                                                        <div class="col-12 col-md-8 mb-1 mb-md-0">
+                                                                            <span class="text-break">${response.file_name}</span>
+                                                                        </div>
+                                                                        <div class="col-12 col-md-4 text-md-end">
+                                                                            <button class="btn btn-sm btn-danger w-100 w-md-auto">Delete</button>
+                                                                        </div>
+                                                                    `;
 
                                                                     fileRow.querySelector('button').onclick = function () {
                                                                         fetch(`/tickets/ajax/delete/${response.id}/`, {
@@ -142,7 +145,7 @@
                                                                             msg = resp.error;
                                                                         }
                                                                     } catch (e) {}
-                                                                    alert(msg);
+                                                                    fileError.textContent = msg;
                                                                     progressContainer.remove();
                                                                 }
                                                             };

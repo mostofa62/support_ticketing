@@ -66,11 +66,10 @@ def subcategories_by_category(request, category_id):
     return JsonResponse(data, safe=False)
 
 
-
+from ict_support.validators import validate_file_size, validate_mime_type
 @require_POST
 @login_required
 def ajax_upload_attachment(request):
-
     # Limit max 2
     if TempAttachment.objects.filter(user=request.user).count() >= 2:
         return JsonResponse({'error': 'Maximum 2 attachments allowed.'}, status=400)
@@ -80,6 +79,19 @@ def ajax_upload_attachment(request):
     if not file:
         return JsonResponse({'error': 'No file provided'}, status=400)
 
+    # Validate file size
+    try:
+        validate_file_size(file)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+    # Validate MIME type
+    try:
+        validate_mime_type(file)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+    # If all validations pass, save
     temp_attachment = TempAttachment.objects.create(
         user=request.user,
         file=file

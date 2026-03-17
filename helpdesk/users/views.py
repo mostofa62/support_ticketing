@@ -121,17 +121,11 @@ def user_logout(request):
 @login_required
 @group_required('Client')
 def dashboard(request):
-    profile = request.user.userprofile
-    tickets = Ticket.objects.filter(
-        submitter=request.user
-    ).order_by('-date_created')
-
     
 
     can_submit = getattr(profile, 'is_active_submitter', True)
 
     return render(request, 'users/dashboard.html', {
-        'tickets': tickets,
         'can_submit': can_submit
     })
 
@@ -150,6 +144,10 @@ def dashboard_data(request):
     data = []
 
     for t in qs:
+        attachments = [
+            {'url': request.build_absolute_uri(a.file.url)}
+            for a in t.attachments.all()
+        ]
         data.append({
             'id': t.id,
             'category': getattr(t.category, 'name', ''),
@@ -158,7 +156,8 @@ def dashboard_data(request):
             'date_created': t.date_created.strftime('%Y-%m-%d %H:%M') if t.date_created else '',
             'detail_url': request.build_absolute_uri(
                 t.get_absolute_url()
-            ) if hasattr(t, 'get_absolute_url') else ''
+            ) if hasattr(t, 'get_absolute_url') else '',
+            'attachments': attachments
         })
 
     return JsonResponse(data, safe=False)

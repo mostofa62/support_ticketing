@@ -133,8 +133,8 @@ class TicketAdmin(admin.ModelAdmin):
     #list_display = ('id', 'submitter', 'assigned_to', 'status', 'priority', 'date_created')
     list_display = (
         'id',
-        'submitter',
-        'assigned_to',
+        'submitter_link',  # list display clickable
+        'assigned_to_display',
         'status',
         'priority',
         'attachment_count',
@@ -142,7 +142,27 @@ class TicketAdmin(admin.ModelAdmin):
         'view_details'
     )
     #exclude = ('submitter',) 
-    readonly_fields = ('submitter',)
+    readonly_fields = ('submitter','submitter_display',)
+
+    # Hide submitter in the form but keep readonly
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        # remove 'submitter' from form fields
+        if 'submitter' in fields:
+            fields.remove('submitter')
+        return fields
+
+
+    # Show submitter nicely in form view
+    def submitter_display(self, obj):
+        if obj.submitter:
+            full_name = obj.submitter.get_full_name() or obj.submitter.username
+            url = reverse('admin:auth_user_change', args=[obj.submitter.pk])
+            return format_html('<a href="{}">{}</a>', url, f'{full_name} ({obj.submitter.username})')
+        return "-"
+    submitter_display.short_description = "Submitter"
+
+    
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -155,12 +175,41 @@ class TicketAdmin(admin.ModelAdmin):
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "assigned_to":
-            # Exclude users in the "Submitter" group
-            submitter_group = Group.objects.filter(name="Submitter").first()
-            if submitter_group:
-                kwargs["queryset"] = User.objects.exclude(groups=submitter_group)
+            staff_group = Group.objects.filter(name="Staff").first()
+            if staff_group:
+                kwargs["queryset"] = User.objects.filter(groups=staff_group, is_active=True)
+                
+                # This is the key part: show full name with username in dropdown
+                class UserModelChoiceField(forms.ModelChoiceField):
+                    def label_from_instance(self, obj):
+                        full_name = obj.get_full_name() or obj.username
+                        return f"{full_name} ({obj.username})"
+                
+                kwargs["form_class"] = UserModelChoiceField
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+    # Show fullname with username in brackets
+    def assigned_to_display(self, obj):
+        if obj.assigned_to:
+            full_name = f"{obj.assigned_to.get_full_name() or obj.assigned_to.username}"
+            return f"{full_name} ({obj.assigned_to.username})"
+        return "-"
+    assigned_to_display.short_description = "Assigned To"
+
+    # Show submitter in list view as clickable link
+    def submitter_link(self, obj):
+        if obj.submitter:
+            full_name = obj.submitter.get_full_name() or obj.submitter.username
+            url = reverse('admin:auth_user_change', args=[obj.submitter.pk])
+            return format_html('<a href="{}">{}</a>', url, f'{full_name} ({obj.submitter.username})')
+        return "-"
+    submitter_link.short_description = "Submitter"
+    submitter_link.admin_order_field = 'submitter'
+
+    
+    
+    
 
     def has_change_permission(self, request, obj=None):
         if request.user.is_superuser:
