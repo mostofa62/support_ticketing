@@ -39,6 +39,7 @@ def admin_logout(request):
 
 
 urlpatterns = [
+    path('api/', include('api.urls')),  # all API endpoints start with /api/
     path('admin/logout/', admin_logout, name='admin_logout'),
     path('admin/', admin.site.urls),
     path('', include('users.urls')),
