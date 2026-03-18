@@ -132,15 +132,18 @@ admin.site.register(IssueSubcategory)
 class TicketAdmin(admin.ModelAdmin):
     #list_display = ('id', 'submitter', 'assigned_to', 'status', 'priority', 'date_created')
     list_display = (
-        'id',
+        #'id',
+        'view_details',
         'submitter_link',  # list display clickable
-        'assigned_to_display',
+        'assigned_to',
+        #'assigned_to_display',
         'status',
         'priority',
         'attachment_count',
         'date_created',
-        'view_details'
+        'date_resolved'
     )
+    list_editable = ('assigned_to', 'status','priority', 'date_resolved')
     #exclude = ('submitter',) 
     readonly_fields = ('submitter','submitter_display',)
 
