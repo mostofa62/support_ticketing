@@ -181,6 +181,17 @@ CELERY_TASK_SERIALIZER = env("CELERY_TASK_SERIALIZER", default="json")
 CELERY_RESULT_SERIALIZER = env("CELERY_RESULT_SERIALIZER", default="json")
 CELERY_TIMEZONE = env("CELERY_TIMEZONE", default="Asia/Dhaka")
 CELERY_ENABLE_UTC = env("CELERY_ENABLE_UTC", default="True").lower() in ("true", "1", "yes")
+CELERY_BROKER_CONNECTION_TIMEOUT = int(env("CELERY_BROKER_CONNECTION_TIMEOUT",default="2"))
+CELERY_BROKER_CONNECTION_RETRY = env("CELERY_BROKER_CONNECTION_RETRY", default="False")
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = env("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", default = "False")
+
+
+CELERY_BEAT_SCHEDULE = {
+    "retry_unsent_notifications": {
+        "task": "notifications.tasks.retry_unsent_notifications",
+        "schedule": 60.0,  # every 60 seconds
+    },
+}
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST",default= "localhost")

@@ -114,3 +114,7 @@ media/
 # **/migrations/**
 # !**/migrations
 # !**/migrations/__init__.py
+
+helpdesk/celerybeat-schedule.bak
+helpdesk/celerybeat-schedule.dat
+helpdesk/celerybeat-schedule.dir
