@@ -5,7 +5,7 @@ class Command(BaseCommand):
     help = "Create default roles: Staff and Client"
 
     def handle(self, *args, **kwargs):
-        roles = ["Staff", "Client"]
+        roles = ["Staff", "Client","Operation"]
         for role in roles:
             group, created = Group.objects.get_or_create(name=role)
             if created:

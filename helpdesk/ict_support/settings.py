@@ -192,7 +192,11 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,  # every 60 seconds
     },
 }
-
+CELERY_TASK_ROUTES = {
+    "notifications.tasks.retry_unsent_notifications": {
+        "queue": "notifications",
+    },
+}
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST",default= "localhost")
 EMAIL_PORT = int(env("EMAIL_PORT", default="1025"))
