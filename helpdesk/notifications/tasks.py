@@ -66,7 +66,7 @@ def send_notification(self, notification_id):
                 print("App notification saved")
 
     except Exception as exc:
-        print('Execption',exec)
+        print('Execption',exc)
         notification.retry_count = self.request.retries + 1
         notification.error_message = str(exc)
         notification.save(update_fields=["retry_count", "error_message"])
@@ -77,7 +77,7 @@ def send_notification(self, notification_id):
 # Periodic retry task (Beat)
 # -----------------------------
 @shared_task
-def retry_unsent_notifications():
+def retry_unsent_notifications(queue="notifications"):
     """
     Find all unsent notifications and enqueue them to be sent again.
     """

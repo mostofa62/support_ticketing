@@ -45,18 +45,20 @@ class Ticket(models.Model):
     submitter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='submitted_tickets')
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_tickets')
     category = models.ForeignKey(IssueCategory, on_delete=models.PROTECT)
-    subcategory = models.ForeignKey(IssueSubcategory, on_delete=models.PROTECT)
+    subcategory = models.ForeignKey(IssueSubcategory, on_delete=models.SET_NULL, null=True, blank=True)
     #priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     priority = models.CharField(
         max_length=20,
         choices=TicketPriority.choices,
-        default=TicketPriority.MEDIUM
+        default=TicketPriority.MEDIUM,
+        blank=True
     )
     #status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     status = models.CharField(
         max_length=20,
         choices=TicketStatus.choices,
-        default=TicketStatus.OPEN
+        default=TicketStatus.OPEN,
+        blank=True
     )
     location = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField()

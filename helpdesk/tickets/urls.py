@@ -7,5 +7,6 @@ urlpatterns = [
     path('subcategories/<int:category_id>/', views.subcategories_by_category, name='subcategories_by_category'),
     path('ajax/upload/', views.ajax_upload_attachment, name='ajax_upload'),
     path('ajax/delete/<int:attachment_id>/', views.ajax_delete_attachment, name='ajax_delete'),
-
+    path('edit/<int:ticket_id>/', views.edit_ticket, name='edit_ticket'),
+    path('delete-attchment/<int:attachment_id>/',views.delete_attachment, name='delete_attachment')
 ]

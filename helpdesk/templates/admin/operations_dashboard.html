@@ -1,0 +1,106 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Operations Dashboard</h1>
+
+<div style="display:flex; gap:20px;">
+
+    <!-- Open -->
+    <div style="flex:1;">
+        <h3>🟥 Open ({{ open_tickets|length }})</h3>
+        {% for t in open_tickets %}
+            <div class="card">{{ t }}</div>
+        {% endfor %}
+    </div>
+
+    <!-- In Progress -->
+    <div style="flex:1;">
+        <h3>🟨 In Progress ({{ in_progress|length }})</h3>
+        {% for t in in_progress %}
+            <div class="card">{{ t }}</div>
+        {% endfor %}
+    </div>
+
+    <!-- Resolved -->
+    <div style="flex:1;">
+        <h3>🟩 Resolved ({{ resolved|length }})</h3>
+        {% for t in resolved %}
+            <div class="card">{{ t }}</div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<hr>
+
+<h2>📊 Statistics</h2>
+<p>Total Tickets: {{ total_tickets }}</p>
+
+<div style="display:flex; gap:30px; flex-wrap:wrap;">
+
+    <!-- PIE CHART -->
+    <div style="width:400px; height:300px;">
+        <canvas id="statusChart"></canvas>
+    </div>
+
+    <!-- BAR CHART -->
+    <div style="width:500px; height:300px;">
+        <canvas id="priorityChart"></canvas>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const statusData = {
+    labels: [{% for s in status_stats %}"{{ s.label }}", {% endfor %}],
+    data: [{% for s in status_stats %}{{ s.count }},{% endfor %}]
+};
+
+new Chart(document.getElementById('statusChart'), {
+        type: 'pie',
+        data: {
+            labels: [{% for s in status_stats %}"{{ s.label }}",{% endfor %}],
+        datasets: [{
+            label: 'Tickets by Status',
+            data: [{% for s in status_stats %}{{ s.count }}, {% endfor %}],
+        backgroundColor: [{% for s in status_stats %}"{{ s.color }}", {% endfor %}]
+        }]
+    },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false
+    }
+});
+
+const priorityData = {
+    labels: [{% for p in priority_stats %}"{{ p.priority }}",{% endfor %}],
+    data: [{% for p in priority_stats %}{{ p.count }},{% endfor %}]
+};
+
+new Chart(document.getElementById('priorityChart'), {
+    type: 'bar',
+    data: {
+        labels: [{% for p in priority_stats %}"{{ p.label }}",{% endfor %}],
+        datasets: [{
+            label: 'Tickets by Priority',  // 🔥 FIXES undefined
+            data: [{% for p in priority_stats %}{{ p.count }}, {% endfor %}],
+            backgroundColor: [{% for p in priority_stats %}"{{ p.color }}", {% endfor %}]
+        }],
+        
+    }
+});
+</script>
+
+<style>
+.card {
+    background: #fff;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+</style>
+
+{% endblock %}

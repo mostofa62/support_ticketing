@@ -122,7 +122,7 @@ def user_logout(request):
 @group_required('Client')
 def dashboard(request):
     
-
+    profile = request.user.userprofile
     can_submit = getattr(profile, 'is_active_submitter', True)
 
     return render(request, 'users/dashboard.html', {

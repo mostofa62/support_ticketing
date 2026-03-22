@@ -19,13 +19,15 @@ from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 # Adds site header, site title, index title to the admin side.
-admin.site.site_header = 'ICT Support Admin'
-admin.site.site_title = 'ICT Support'
-admin.site.index_title = 'Welcome ICT Support'
+from .admin_site import admin_site
+# admin.site.site_header = 'ICT Support Admin'
+# admin.site.site_title = 'ICT Support'
+# admin.site.index_title = 'Welcome to ICT Support'
 
 from ict_support.forms import AdminLoginForm
 
-admin.site.login_form = AdminLoginForm
+#admin.site.login_form = AdminLoginForm
+admin_site.login_form = AdminLoginForm
 
 # Optional: Custom admin logout view
 from django.contrib.auth import logout
@@ -41,7 +43,8 @@ def admin_logout(request):
 urlpatterns = [
     path('api/', include('api.urls')),  # all API endpoints start with /api/
     path('admin/logout/', admin_logout, name='admin_logout'),
-    path('admin/', admin.site.urls),
+    #path('admin/', admin.site.urls),
+    path('admin/', admin_site.urls),
     path('', include('users.urls')),
     path('tickets/', include('tickets.urls')),
 ]

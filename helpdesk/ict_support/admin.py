@@ -10,24 +10,25 @@ from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 from users.models import UserProfile
+from .admin_site import admin_site
 
+# keep reference to original
 original_get_app_list = admin.site.get_app_list
 
-
-
-def custom_get_app_list(request):
-    app_list = original_get_app_list(request)
+def custom_get_app_list(self, request, app_label=None):
+    app_list = original_get_app_list(request, app_label)
 
     # ---- Reorder apps ----
-    desired_app_order = ['ict_support','auth']  # Replace 'myapp' with your app label
+    desired_app_order = ['ict_support', 'auth']
     app_list.sort(
-        key=lambda x: desired_app_order.index(x['app_label']) if x['app_label'] in desired_app_order else 100
+        key=lambda x: desired_app_order.index(x['app_label'])
+        if x['app_label'] in desired_app_order else 100
     )
 
     # ---- Reorder models inside each app ----
     model_order_map = {
         'auth': ['User', 'Group'],
-        'ict_support': ['Ticket', 'IssueCategory','IssueSubcategory','PasswordResetConfig'],  # Replace 'myapp' with your app label
+        'ict_support': ['Ticket', 'IssueCategory', 'IssueSubcategory', 'PasswordResetConfig'],
     }
 
     for app in app_list:
@@ -40,8 +41,8 @@ def custom_get_app_list(request):
 
     return app_list
 
-admin.site.get_app_list = custom_get_app_list
-
+# ✅ bind correctly
+#admin.site.get_app_list = custom_get_app_list.__get__(admin.site, type(admin.site))
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -101,9 +102,11 @@ class CustomUserAdmin(UserAdmin):
 
 
 
-admin.site.unregister(User)
-admin.site.register(User, CustomUserAdmin)
-
+#admin.site.unregister(User)
+#admin.site.register(User, CustomUserAdmin)
+#admin_site.unregister(User)
+admin_site.register(User,CustomUserAdmin)
+admin_site.register(Group)
 
 class AttachmentInline(admin.TabularInline):
     model = Attachment
@@ -124,11 +127,13 @@ class AttachmentInline(admin.TabularInline):
     file_link.short_description = "File"
     '''
 
-admin.site.register(IssueCategory)
-admin.site.register(IssueSubcategory)
+#admin.site.register(IssueCategory)
+admin_site.register(IssueCategory)
+#admin.site.register(IssueSubcategory)
+admin_site.register(IssueSubcategory)
 
 
-@admin.register(Ticket)
+#@admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
     #list_display = ('id', 'submitter', 'assigned_to', 'status', 'priority', 'date_created')
     list_display = (
@@ -138,6 +143,8 @@ class TicketAdmin(admin.ModelAdmin):
         'assigned_to',
         #'assigned_to_display',
         'status',
+        #'status_badge',
+        #'priority_badge',
         'priority',
         'attachment_count',
         'date_created',
@@ -146,6 +153,77 @@ class TicketAdmin(admin.ModelAdmin):
     list_editable = ('assigned_to', 'status','priority', 'date_resolved')
     #exclude = ('submitter',) 
     readonly_fields = ('submitter','submitter_display',)
+    ordering = ('-date_created',)
+
+    def get_list_display(self, request):
+        if request.user.is_superuser:
+            return self.list_display
+        
+        return (
+            'view_details',
+            'attachment_icon',
+            'location',
+            'status',
+            #'priority',
+            #'status_badge',
+            'priority_badge',
+            'date_created',
+            'date_resolved'
+        )
+
+    
+    
+        
+
+    def get_readonly_fields(self, request, obj=None):
+        if request.user.is_superuser:
+            return self.readonly_fields
+
+        # make ALL fields readonly for staff
+        return [field.name for field in self.model._meta.fields]
+    
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        if not request.user.is_superuser:
+            extra_context = extra_context or {}
+            extra_context['show_save'] = False
+            extra_context['show_save_and_continue'] = False
+            extra_context['show_save_and_add_another'] = False
+            extra_context['show_delete'] = False
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    def status_badge(self, obj):
+        colors = {
+            'open': '#dc3545',          # red
+            'in_progress': '#ffc107',   # yellow
+            'resolved': '#28a745',      # green
+            'closed': '#6c757d',        # gray
+        }
+        color = colors.get(obj.status, '#000')
+
+        return format_html(
+            '<span style="padding:4px 8px; border-radius:8px; color:white; background:{};">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+
+    status_badge.short_description = "Status"
+
+    def priority_badge(self, obj):
+        colors = {
+            'low': '#17a2b8',
+            'medium': '#ffc107',
+            'high': '#dc3545',
+            'urgent':'#EE0000',
+        }
+        color = colors.get(obj.priority, '#000')
+
+        return format_html(
+            '<b style="color:{};">{}</b>',
+            color,
+            obj.get_priority_display()
+        )
+
+    priority_badge.short_description = "Priority"
 
     # Hide submitter in the form but keep readonly
     def get_fields(self, request, obj=None):
@@ -239,6 +317,13 @@ class TicketAdmin(admin.ModelAdmin):
         return actions
 
     def save_model(self, request, obj, form, change):
+        if not request.user.is_superuser:
+            original = Ticket.objects.get(pk=obj.pk)
+
+            # prevent changing restricted fields
+            obj.assigned_to = original.assigned_to
+            obj.priority = original.priority
+            obj.submitter = original.submitter
         if not change or not obj.submitter:
             obj.submitter = request.user
         super().save_model(request, obj, form, change)
@@ -249,6 +334,13 @@ class TicketAdmin(admin.ModelAdmin):
         return obj._attachment_count
 
     attachment_count.short_description = "Attachments"
+
+    def attachment_icon(self, obj):
+        if obj._attachment_count > 0:
+            return format_html("📎 {}", obj._attachment_count)
+        return "-"
+
+    attachment_icon.short_description = "Files"
 
     def view_details(self, obj):
         url = reverse(
@@ -262,18 +354,19 @@ class TicketAdmin(admin.ModelAdmin):
     list_filter = ('status', 'priority', 'category')
     inlines = [AttachmentInline]
 
+admin_site.register(Ticket, TicketAdmin)
+
 class TicketAttachmentAdmin(admin.ModelAdmin):
     pass
 
-
 from solo.admin import SingletonModelAdmin
-@admin.register(PasswordResetConfig)
+#@admin.register(PasswordResetConfig)
 class PasswordResetConfigAdmin(SingletonModelAdmin):
     pass
 
+admin_site.register(PasswordResetConfig, PasswordResetConfigAdmin)
 
-
-@admin.register(StaffUser)
+#@admin.register(StaffUser)
 class StaffUserAdmin(UserAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -293,7 +386,8 @@ class StaffUserAdmin(UserAdmin):
     # Remove filter sidebar items
     list_filter = ('is_active',)  # empty tuple disables all default filters
 
-@admin.register(ClientUser)
+admin_site.register(StaffUser, StaffUserAdmin)
+#@admin.register(ClientUser, site=admin_site)
 class ClientUserAdmin(UserAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -312,3 +406,5 @@ class ClientUserAdmin(UserAdmin):
 
     # Remove filter sidebar items
     list_filter = ('is_active',)  # empty tuple disables all default filters
+
+admin_site.register(ClientUser, ClientUserAdmin)
