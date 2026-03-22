@@ -1,4 +1,6 @@
+
 {% extends "base_bootstrap_jquery.html" %}
+{% load file_extras %}
 
 {% block title %}Create Ticket — ICT Support{% endblock %}
 
@@ -8,7 +10,13 @@
         <div class="col-md-8">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h3 class="card-title mb-3">Submit a Ticket</h3>
+                    <h3 class="card-title mb-3">
+                        {% if edit_mode %}
+                        Edit Ticket
+                        {% else %}
+                        Submit a Ticket
+                        {% endif %}
+                    </h3>
 
                     {% if form.non_field_errors %}
                         <div class="alert alert-danger mb-3">
@@ -30,14 +38,20 @@
                                                         {% endif %}
                                                     </div>
 
-                                                    <div class="col-12 col-md-6">
-                                                        <label class="form-label" for="{{ form.subcategory.id_for_label }}">{{ form.subcategory.label }}</label>
+                                                    <div class="col-12 col-md-6" id="subcategory-container">
+                                                        <div id="subcategory-wrapper" style="display: none;">
+                                                        <label class="form-label" for="{{ form.subcategory.id_for_label }}">
+                                                            {{ form.subcategory.label }}
+                                                        </label>
                                                         {{ form.subcategory }}
                                                         {% if form.subcategory.errors %}
-                                                            <div class="invalid-feedback d-block">
-                                                                {% for e in form.subcategory.errors %}{{ e }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
-                                                            </div>
+                                                        <div class="invalid-feedback d-block">
+                                                            {% for e in form.subcategory.errors %}
+                                                            {{ e }}{% if not forloop.last %}<br>{% endif %}
+                                                            {% endfor %}
+                                                        </div>
                                                         {% endif %}
+                                                        </div>
                                                     </div>
 
                                                     <!-- <div class="col-12 col-md-4">
@@ -61,103 +75,42 @@
                                                     </div>
 
                                                     <hr>
-                                                    <h5>Attachments (Max 2)</h5>
+                                                    <h5>Attachments (Max {{MAX_ATTACHMENT_COUNT}})</h5>
                                                     
                                                     <input type="file" id="fileInput" class="form-control mb-3">
                                                     <div id="fileError" class="text-danger mb-3"></div>
+                                                    {% if edit_mode and attachments %}
+                                                    <div id="existingAttachmentsWrapper" class="mb-3">
+                                                        <h6>Existing Attachments</h6>
+                                                    
+                                                        <div id="existingAttachments">
+                                                            {% for att in attachments %}
+                                                            <div id="att-{{ att.id }}" class="row g-2 align-items-center mt-2">
+                                                                <div class="col-12 col-md-8 mb-1 mb-md-0">
+                                                                    <a href="{{ att.file.url }}" target="_blank">
+                                                                        {{ att.file.name|basename }}
+                                                                    </a>
+                                                                </div>
+                                                                <div class="col-12 col-md-4 text-md-end">
+                                                                    <button type="button" onclick="deleteAttachment({{ att.id }})" class="btn btn-sm btn-danger w-100 w-md-auto">
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
                                                     <div id="uploadList"></div>
                                                     
-                                                    <script>
-                                                        const fileInput = document.getElementById('fileInput');
-                                                        const uploadList = document.getElementById('uploadList');
-
-                                                        fileInput.addEventListener('change', function () {
-                                                            const file = this.files[0];
-                                                            if (!file) return;
-
-                                                            const formData = new FormData();
-                                                            formData.append('file', file);
-
-                                                            const xhr = new XMLHttpRequest();
-                                                            xhr.open('POST', "{% url 'ajax_upload' %}");
-                                                            xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
-
-                                                            const progressContainer = document.createElement('div');
-                                                            progressContainer.className = 'mb-2';
-
-                                                            const progressBar = document.createElement('div');
-                                                            progressBar.className = 'progress';
-
-                                                            const progressInner = document.createElement('div');
-                                                            progressInner.className = 'progress-bar';
-                                                            progressInner.style.width = '0%';
-
-                                                            progressBar.appendChild(progressInner);
-                                                            progressContainer.appendChild(progressBar);
-                                                            uploadList.appendChild(progressContainer);
-
-                                                            xhr.upload.addEventListener('progress', function (e) {
-                                                                if (e.lengthComputable) {
-                                                                    const percent = (e.loaded / e.total) * 100;
-                                                                    progressInner.style.width = percent + '%';
-                                                                }
-                                                            });
-
-                                                            xhr.onload = function () {
-                                                                const fileError = document.getElementById('fileError');
-                                                                fileError.textContent = '';  // clear previous error
-
-                                                                if (xhr.status === 200) {
-                                                                    const response = JSON.parse(xhr.responseText);
-
-                                                                    progressInner.classList.add('bg-success');
-
-                                                                    const fileRow = document.createElement('div');
-                                                                    fileRow.className = 'row g-2 align-items-center mt-2';
-                                                                    fileRow.innerHTML = `
-                                                                        <div class="col-12 col-md-8 mb-1 mb-md-0">
-                                                                            <span class="text-break">${response.file_name}</span>
-                                                                        </div>
-                                                                        <div class="col-12 col-md-4 text-md-end">
-                                                                            <button class="btn btn-sm btn-danger w-100 w-md-auto">Delete</button>
-                                                                        </div>
-                                                                    `;
-
-                                                                    fileRow.querySelector('button').onclick = function () {
-                                                                        fetch(`/tickets/ajax/delete/${response.id}/`, {
-                                                                            method: 'POST',
-                                                                            headers: {
-                                                                                'X-CSRFToken': "{{ csrf_token }}"
-                                                                            }
-                                                                        }).then(() => {
-                                                                            fileRow.remove();
-                                                                            progressContainer.remove();
-                                                                        });
-                                                                    };
-
-                                                                    uploadList.appendChild(fileRow);
-
-                                                                } else {
-                                                                    let msg = 'Upload failed';
-                                                                    try {
-                                                                        const resp = JSON.parse(xhr.responseText);
-                                                                        if (resp && resp.error) {
-                                                                            msg = resp.error;
-                                                                        }
-                                                                    } catch (e) {}
-                                                                    fileError.textContent = msg;
-                                                                    progressContainer.remove();
-                                                                }
-                                                            };
-
-                                                            xhr.send(formData);
-                                                        });
-                                                    </script>
+                                                    
 
                                                 </div>
 
                         <div class="d-flex justify-content-between align-items-center py-2">
-                            <button type="submit" class="btn btn-primary">Submit Ticket</button>
+                            <button type="submit" class="btn btn-primary">
+                                {% if edit_mode %}Update Ticket{% else %}Submit Ticket{% endif %}
+                            </button>
                             <a href="{% url 'dashboard' %}" class="btn btn-link">Back to Dashboard</a>
                         </div>
                     </form>
@@ -166,42 +119,249 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    const csrftoken = "{{ csrf_token }}";
+    $.ajaxSetup({ headers: { 'X-CSRFToken': csrftoken } });
+
+    const deleteTempBaseUrl = "{% url 'delete_attachment' attachment_id=0 %}";
+    const uploadUrl = "{% url 'ajax_upload' %}";
+    const ajaxDelete = "{% url 'ajax_delete' attachment_id=0 %}";
+    const subcategoryBaseUrl = "{% url 'subcategories_by_category' category_id=0 %}";
+</script>
+
+<script>
+   
+    
+    function deleteAttachment(id) {
+            const url = deleteTempBaseUrl.replace('/0/', `/${id}/`);
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "This file will be permanently deleted!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+
+                    $.ajax({
+                        url: url,
+                        type: "POST",
+                        success: function () {
+
+                            $(`#att-${id}`).fadeOut(200, function () {
+                                $(this).remove();
+
+                                if ($('#existingAttachments').children().length === 0) {
+                                    $('#existingAttachmentsWrapper').fadeOut();
+                                }
+                            });
+
+                            Swal.fire('Deleted!', 'Attachment has been removed.', 'success');
+                        },
+                        error: function () {
+                            Swal.fire('Error!', 'Failed to delete.', 'error');
+                        }
+                    });
+
+                }
+            });
+        }
+</script>
+<script>
+    $('#fileInput').on('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const progressContainer = $('<div class="mb-2"></div>');
+        const progressBar = $(`
+    <div class="progress">
+        <div class="progress-bar" style="width:0%"></div>
+    </div>
+`);
+
+        progressContainer.append(progressBar);
+        $('#uploadList').append(progressContainer);
+
+        $.ajax({
+            url: uploadUrl,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            xhr: function () {
+                const xhr = new window.XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', function (e) {
+                    if (e.lengthComputable) {
+                        const percent = (e.loaded / e.total) * 100;
+                        progressBar.find('.progress-bar').css('width', percent + '%');
+                    }
+                });
+
+                return xhr;
+            },
+            success: function (response) {
+
+                progressBar.find('.progress-bar').addClass('bg-success');
+
+                const fileRow = $(`
+            <div class="row g-2 align-items-center mt-2" id="temp-${response.id}">
+                <div class="col-12 col-md-8 mb-1 mb-md-0">
+                    <a href="${response.file_url}" target="_blank" class="text-break">
+                        ${response.file_name}
+                    </a>
+                </div>
+                <div class="col-12 col-md-4 text-md-end">
+                    <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `);
+
+                fileRow.find('button').on('click', function () {
+
+                    const url = ajaxDelete.replace('/0/', `/${response.id}/`);
+                    const $btn = $(this);
+
+                    Swal.fire({
+                        title: 'Delete file?',
+                        text: 'This temporary file will be removed.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, delete it'
+                    }).then((result) => {
+
+                        if (!result.isConfirmed) return;
+
+                        // Disable button to prevent double click
+                        $btn.prop('disabled', true);
+
+                        $.ajax({
+                            url: url,
+                            type: 'POST',
+                            headers: {
+                                'X-CSRFToken': csrftoken
+                            },
+                            success: function () {
+
+                                // Smooth remove
+                                fileRow.fadeOut(200, function () {
+                                    $(this).remove();
+                                });
+
+                                progressContainer.fadeOut(200, function () {
+                                    $(this).remove();
+                                });
+
+                                // Reset input
+                                $('#fileInput').val('');
+
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: 'File removed successfully',
+                                    timer: 1200,
+                                    showConfirmButton: false
+                                });
+                            },
+                            error: function () {
+                                $btn.prop('disabled', false);
+
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Failed!',
+                                    text: 'Could not delete file'
+                                });
+                            }
+                        });
+
+                    });
+                });
+                $('#uploadList').append(fileRow);
+
+            },
+            error: function (xhr) {
+                let msg = 'Upload failed';
+
+                try {
+                    const resp = xhr.responseJSON;
+                    if (resp && resp.error) {
+                        msg = resp.error;
+                    }
+                } catch (e) { }
+
+                $('#fileError').text(msg);
+                progressContainer.remove();
+            }
+        });
+    });
+</script>
 
 <!-- Dynamic subcategory loading -->
 <script>
-        document.addEventListener('DOMContentLoaded', function () {
-                const categorySelect = document.getElementById('id_category');
-                const subcatSelect = document.getElementById('id_subcategory');
+    $(document).ready(function () {
 
-                function loadSubcategories(categoryId) {
-                        if (!categoryId) {
-                                subcatSelect.innerHTML = '<option value="">Select a category first</option>';
-                                return;
-                        }
-                        fetch(`/tickets/subcategories/${categoryId}/`)
-                                .then(response => response.json())
-                                .then(data => {
-                                        subcatSelect.innerHTML = '';
-                                        data.forEach(sc => {
-                                                const option = document.createElement('option');
-                                                option.value = sc.id;
-                                                option.text = sc.name;
-                                                subcatSelect.add(option);
-                                        });
-                                });
+            const $category = $('#id_category');
+            const $subcategory = $('#id_subcategory');
+            const $wrapper = $('#subcategory-wrapper');
+
+            const selectedSubcategory = "{{ form.subcategory.value|default:'' }}";
+
+            function loadSubcategories(categoryId) {
+
+                if (!categoryId) {
+                    $wrapper.hide();
+                    $subcategory.html('<option value="">Select a category first</option>');
+                    return;
                 }
 
-                // Load subcategories when the page loads if a category is already selected
-                if (categorySelect && categorySelect.value) {
-                        loadSubcategories(categorySelect.value);
-                }
+                const url = subcategoryBaseUrl.replace('/0/', `/${categoryId}/`);
 
-                // Load subcategories when category changes
-                if (categorySelect) {
-                    categorySelect.addEventListener('change', function () {
-                            loadSubcategories(this.value);
-                    });
-                }
+                $.get(url, function (data) {
+
+                    $subcategory.empty();
+
+                    if (data.length > 0) {
+                        $wrapper.show();
+
+                        $subcategory.append('<option value="">Select subcategory</option>');
+
+                        $.each(data, function (i, sc) {
+                            const selected = sc.id == selectedSubcategory ? 'selected' : '';
+                            $subcategory.append(
+                                `<option value="${sc.id}" ${selected}>${sc.name}</option>`
+                            );
+                        });
+
+                    } else {
+                        $wrapper.hide();
+                    }
+                });
+            }
+
+            if ($category.val()) {
+                loadSubcategories($category.val());
+            }
+
+            $category.on('change', function () {
+                loadSubcategories($(this).val());
+            });
+
         });
 </script>
 

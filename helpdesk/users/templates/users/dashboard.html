@@ -72,6 +72,7 @@
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
 <script>
+    const editBaseUrl = "{% url 'edit_ticket' ticket_id=0 %}";
     // CSRF helper
     function getCookie(name) {
         let cookieValue = null;
@@ -117,10 +118,11 @@
                     data: null,
                     orderable: false,
                     render: function (data, type, row) {
-                        if (row.detail_url) {
-                            return `<a class="btn btn-sm btn-primary" href="${row.detail_url}">View</a>`;
-                        }
-                        return '';
+                       let viewBtn = row.detail_url ? `<a class="btn btn-sm btn-primary" href="${row.detail_url}">View</a>` : '';
+                       let editUrl = editBaseUrl.replace('/0/', `/${row.id}/`);
+                       let editBtn = `<a class="btn btn-sm btn-warning" href="${editUrl}">Edit</a>`;
+
+                        return viewBtn + ' ' + editBtn;
                     }
                 }
             ],

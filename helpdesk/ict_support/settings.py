@@ -143,6 +143,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+TEMP_UPLOAD_DIR = env("TEMP_UPLOAD_DIR", default="temp")
 
 TICKET_ATTACHMENT_PATH = env('TICKET_ATTACHMENT_PATH', default='ticket_uploads/')
 
@@ -185,11 +186,17 @@ CELERY_BROKER_CONNECTION_TIMEOUT = int(env("CELERY_BROKER_CONNECTION_TIMEOUT",de
 CELERY_BROKER_CONNECTION_RETRY = env("CELERY_BROKER_CONNECTION_RETRY", default="False")
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = env("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", default = "False")
 
+TEMP_ATTACHMENT_THRESHOLD_MINUTES = int(env("TEMP_ATTACHMENT_THRESHOLD_MINUTES",default="1"))
+MAX_ATTACHMENT_COUNT = int(env("MAX_ATTACHMENT_COUNT",default="2"))
 
 CELERY_BEAT_SCHEDULE = {
     "retry_unsent_notifications": {
         "task": "notifications.tasks.retry_unsent_notifications",
-        "schedule": 60.0,  # every 60 seconds
+        "schedule": int(env("retry_unsent_notifications",default="60")),  # every 60 seconds
+    },
+    "cleanup_temp_attachments": {
+        "task": "tickets.tasks.cleanup_temp_attachments",
+        "schedule": int(env("cleanup_temp_attachments",default="20")),  # every 60 seconds
     },
 }
 CELERY_TASK_ROUTES = {
