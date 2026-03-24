@@ -47,6 +47,7 @@
                     style="width:100%">
                     <thead class="table-light">
                         <tr>
+                            <th></th> <!-- 👈 NEW: expand button -->
                             <th>ID</th>
                             <th>Category</th>
                             <th>Subcategory</th>
@@ -71,33 +72,31 @@
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
+{% include "partials/_session_remove_js.html" %}
+
 <script>
     const editBaseUrl = "{% url 'edit_ticket' ticket_id=0 %}";
-    // CSRF helper
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    const csrftoken = getCookie('csrftoken');
+    const detailsBaseUrl = "{% url 'ticket_details' id=0 %}";
+    const csrftoken = "{{ csrf_token }}";
     $.ajaxSetup({ headers: { 'X-CSRFToken': csrftoken } });
 
     $(document).ready(function () {
-        $('#tickets-table').DataTable({
+        
+        
+        
+        const table =  $('#tickets-table').DataTable({
             ajax: {
                 url: "{% url 'dashboard_data' %}",
                 dataSrc: ''
             },
+            responsive: false,
             columns: [
+                {
+                    data: null,
+                    className: "dt-control",
+                    orderable: false,
+                    defaultContent: ''
+                },
                 { data: 'id' },
                 { data: 'category' },
                 { data: 'subcategory' },
@@ -134,6 +133,62 @@
                 searchPlaceholder: "Search tickets..."
             }
         });
+
+
+        // cache (optional but recommended)
+        let detailsCache = {};
+
+        $('#tickets-table').on('click', 'td.dt-control', function () {
+            const tr = $(this).closest('tr');
+            const row = table.row(tr);
+            const data = row.data();
+            const icon = $(this).find('.toggle-icon');
+
+            if (row.child.isShown()) {
+                row.child.hide();
+                tr.removeClass('shown');
+                
+            } else {
+                
+                let url = detailsBaseUrl.replace('/0/', `/${data.id}/`);
+                
+                // 👇 check cache first
+                if (detailsCache[data.id]) {
+                    row.child(detailsCache[data.id]).show();
+                } else {
+                    $.ajax({
+                        url: url, // 👈 Django endpoint
+                        type: 'GET',
+                        success: function (res) {
+                            const html = formatDetails(res);
+                            detailsCache[data.id] = html;
+                            row.child(html).show();
+                        }
+                    });
+                }
+
+                tr.addClass('shown');
+                // 👇 force layout update (fix mobile issue)
+                table.columns.adjust().draw(false);
+                
+            }
+        });
+
+        function formatDetails(data) {
+            return `
+                <div class="p-3 bg-light border rounded">
+                    <strong>Location:</strong>
+                    <p>${data.location || '-'}</p>
+
+                    <strong>Description:</strong>
+                    <p>${data.description || '-'}</p>
+
+                </div>
+        `;
+        }
     });
+
+
+    
 </script>
 {% endblock %}

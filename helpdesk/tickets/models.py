@@ -25,7 +25,9 @@ class TempAttachment(models.Model):
         ]
     )
     session_id = models.CharField(max_length=255, blank=True)  # 👈 add this
+    ticket_id = models.IntegerField(null=True, blank=True)  # ✅ add this
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    
     
 
     def __str__(self):

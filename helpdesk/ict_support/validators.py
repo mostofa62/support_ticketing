@@ -16,11 +16,13 @@ def validate_mime_type(value):
     mime = magic.from_buffer(value.read(1024), mime=True)
     value.seek(0)
 
-    allowed_mimes = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-    ]
+    allowed_mimes = {
+        'application/pdf': 'PDF',
+        'image/jpeg': 'JPEG',
+        'image/png': 'PNG',
+    }
 
     if mime not in allowed_mimes:
-        raise ValidationError("Unsupported file type.")
+        raise ValidationError(
+            f"Unsupported file type: {mime}. Supported types are: {', '.join(allowed_mimes.values())}."
+        )
