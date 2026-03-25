@@ -26,6 +26,7 @@
 
                     <form method="post" novalidate>
                         {% csrf_token %}
+                        <input type="hidden" name="session_id" id="session_id">
 
                                                 <div class="row g-3">
                                                     <div class="col-12 col-md-6">
@@ -79,9 +80,11 @@
                                                     
                                                     <input type="file" id="fileInput" class="form-control mb-3">
                                                     <div id="fileError" class="text-danger mb-3"></div>
+                                                    <div id="remainingInfo" class="text-muted mb-2"></div>
                                                     {% if edit_mode and attachments %}
                                                     <div id="existingAttachmentsWrapper" class="mb-3">
                                                         <h6>Existing Attachments</h6>
+                                                        <hr/>
                                                     
                                                         <div id="existingAttachments">
                                                             {% for att in attachments %}
@@ -101,7 +104,11 @@
                                                         </div>
                                                     </div>
                                                     {% endif %}
-                                                    <div id="uploadList"></div>
+                                                    <div id="tempAttachmentsWrapper" class="mb-3">
+                                                        <h6>Temporary Attachments</h6>
+                                                        <hr />
+                                                        <div id="uploadList"></div>
+                                                    </div>
                                                     
                                                     
 
@@ -122,64 +129,268 @@
 {% endblock %}
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+
+    function generateSessionId() {
+        // Modern browsers
+        if (window.crypto && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+
+        // Fallback for older browsers
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    $(document).ready(function () {
+
+        let sessionId = sessionStorage.getItem('session_id');
+
+        if (!sessionId) {
+            sessionId = generateSessionId();
+            sessionStorage.setItem('session_id', sessionId);
+        }
+
+        console.log('Session ID:', sessionId);
+    });
+</script>
+
 <script>
     const csrftoken = "{{ csrf_token }}";
     $.ajaxSetup({ headers: { 'X-CSRFToken': csrftoken } });
+
+    const maxAttachments = {{ MAX_ATTACHMENT_COUNT }};
 
     const deleteTempBaseUrl = "{% url 'delete_attachment' attachment_id=0 %}";
     const uploadUrl = "{% url 'ajax_upload' %}";
     const ajaxDelete = "{% url 'ajax_delete' attachment_id=0 %}";
     const subcategoryBaseUrl = "{% url 'subcategories_by_category' category_id=0 %}";
+    const attchmentRemaining = "{% url 'attachment_remaining' session_id=0 %}";
+    const attchmentRemainingList  =  "{% url 'list_temp_attachments' session_id=0 %}";
+    {% if edit_mode %}
+        const ticketId = "{{ ticket.id }}";
+    {% else %}
+        const ticketId = null;
+    {% endif %}
+
 </script>
 
 <script>
-   
-    
+    function getRemainingAttachments(sessionId, callback) {
+
+        const url = attchmentRemaining.replace('/0/', `/${sessionId}/`);
+
+        $.get(url)
+            .done(function (res) {
+                if (res.success) {
+                    if (typeof callback === 'function') {
+                        callback(res.remaining);
+                    }
+                } else {
+                    console.error('Failed to get remaining count');
+                }
+            })
+            .fail(function () {
+                console.error('Error calling remaining API');
+        });
+    }
+
+    function loadTempFiles(sessionId) {
+        const url = attchmentRemainingList.replace('/0/', `/${sessionId}/`);
+        $.get(url)
+            .done(function (res) {
+                if (res.success) {
+                    let html = '';
+
+                    res.files.forEach(function (file) {
+                        html += `
+                        <div class="row g-2 align-items-center mt-2" id="temp-${file.id}">
+                            <div class="col-12 col-md-8 mb-1 mb-md-0">
+                                <a href="${file.url || '#'}" target="_blank" class="text-break">
+                                    ${file.name}
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4 text-md-end">
+                                <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto delete-temp">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    });
+
+                    $('#uploadList').html(html);
+                }
+        });
+    }
+
     function deleteAttachment(id) {
-            const url = deleteTempBaseUrl.replace('/0/', `/${id}/`);
+        const url = deleteTempBaseUrl.replace('/0/', `/${id}/`);
 
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "This file will be permanently deleted!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "This file will be permanently deleted!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
 
-                    $.ajax({
-                        url: url,
-                        type: "POST",
-                        success: function () {
+                $.ajax({
+                    url: url,
+                    type: "POST",
+                     data: {
+                        session_id: sessionStorage.getItem('session_id')
+                    },
+                    success: function () {
 
-                            $(`#att-${id}`).fadeOut(200, function () {
-                                $(this).remove();
+                        $(`#att-${id}`).fadeOut(200, function () {
+                            $(this).remove();
 
-                                if ($('#existingAttachments').children().length === 0) {
-                                    $('#existingAttachmentsWrapper').fadeOut();
-                                }
-                            });
+                            if ($('#existingAttachments').children().length === 0) {
+                                $('#existingAttachmentsWrapper').fadeOut();
+                            }
+                        });
 
-                            Swal.fire('Deleted!', 'Attachment has been removed.', 'success');
-                        },
-                        error: function () {
-                            Swal.fire('Error!', 'Failed to delete.', 'error');
+                        const sessionId = sessionStorage.getItem('session_id');
+
+                        getRemainingAttachments(sessionId, function (remaining) {
+                            
+                            if (remaining == 0) {                                
+                                $('#fileInput').prop('disabled', true);
+                                $('#remainingInfo').text(`Maximum attachments reached`);
+                                $('#remainingInfo').removeClass("text-muted").addClass("text-danger");
+                            } else {
+                                $('#fileInput').prop('disabled', false);
+                                $('#remainingInfo').text(`Remaining uploads: ${remaining}`);
+                                $('#remainingInfo').removeClass("text-danger").addClass("text-muted");
+                            }
+                        });
+
+                        Swal.fire('Deleted!', 'Attachment has been removed.', 'success');
+                    },
+                    error: function () {
+                        Swal.fire('Error!', 'Failed to delete.', 'error');
+                    }
+                });
+
+            }
+        });
+    }
+
+    function deleteTempAttachment(id, rowElement) {
+        const url = ajaxDelete.replace('/0/', `/${id}/`);
+        const sessionId = sessionStorage.getItem('session_id');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                session_id: sessionStorage.getItem('session_id')
+            },
+            success: function (res) {
+                if (res.success) {
+                    rowElement.fadeOut(200, function () {
+                        $(this).remove();
+                    });
+
+                    getRemainingAttachments(sessionId, function (remaining) {
+
+                        if (remaining == 0) {
+                            $('#fileInput').prop('disabled', true);
+                            $('#remainingInfo').text(`Maximum attachments reached`);
+                            $('#remainingInfo').removeClass("text-muted").addClass("text-danger");
+                        } else {
+                            $('#fileInput').prop('disabled', false);
+                            $('#remainingInfo').text(`Remaining uploads: ${remaining}`);
+                            $('#remainingInfo').removeClass("text-danger").addClass("text-muted");
                         }
                     });
 
+                    Swal.fire('Deleted!', 'Temporary Attachment has been removed.', 'success');
                 }
-            });
-        }
+            },
+            error: function () {
+                Swal.fire('Error!', 'Failed to delete.', 'error');
+            }
+        });
+    }
 </script>
+
 <script>
+
+    $(document).ready(function () {
+        const sessionId = sessionStorage.getItem('session_id');
+        $('#session_id').val(sessionId);
+        //let current = $('#existingAttachments .row').length + $('#uploadList .row').length;
+        //let remaining = maxAttachments - current;
+        getRemainingAttachments(sessionId, function (remaining) {
+
+            if (remaining == 0) {
+                $('#fileInput').prop('disabled', true);
+                $('#remainingInfo').text(`Maximum attachments reached`);
+                $('#remainingInfo').removeClass("text-muted").addClass("text-danger");
+            } else {
+                $('#fileInput').prop('disabled', false);
+                $('#remainingInfo').text(`Remaining uploads: ${remaining}`);
+                $('#remainingInfo').removeClass("text-danger").addClass("text-muted");
+            }
+        });
+
+        //$('#remainingInfo').text(`Remaining uploads: ${remaining}`);
+        loadTempFiles(sessionId);
+    });
+    $(document).on('click', '.delete-temp', function () {
+
+        const row = $(this).closest('.row');
+        const id = row.attr('id').replace('temp-', '');
+
+        Swal.fire({
+            title: 'Delete file?',
+            text: 'This temporary file will be removed.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+        }).then((result) => {
+
+            if (!result.isConfirmed) return;
+
+            $(this).prop('disabled', true);
+
+            deleteTempAttachment(id, row);
+        });
+    });
+</script>
+
+<script>
+
+    function getTotalAttachments() {
+        return $('#existingAttachments .row').length + $('#uploadList .row').length;
+    }
+
     $('#fileInput').on('change', function () {
         const file = this.files[0];
         if (!file) return;
 
+        if (getTotalAttachments() >= {{ MAX_ATTACHMENT_COUNT }}) {
+                $('#fileError').text(`Maximum {{ MAX_ATTACHMENT_COUNT }} attachments reached`);
+                $('#fileInput').val('');
+                return;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('session_id', sessionStorage.getItem('session_id'));
+
+        if (ticketId) {
+            formData.append('ticket_id', ticketId);
+        }
 
         const progressContainer = $('<div class="mb-2"></div>');
         const progressBar = $(`
@@ -216,6 +427,17 @@
 
                 progressBar.find('.progress-bar').addClass('bg-success');
 
+                // ✅ Show remaining count
+                if (response.remaining !== undefined) {
+                    $('#remainingInfo').text(`Attachments ( ${response.remaining} /  {{ MAX_ATTACHMENT_COUNT }}) `);
+                }
+
+                if (response.remaining === 0) {
+                    $('#fileInput').prop('disabled', true);
+                    $('#remainingInfo').text('Maximum attachments reached');
+                    $('#remainingInfo').removeClass("text-muted").addClass("text-danger");
+                }
+
                 const fileRow = $(`
             <div class="row g-2 align-items-center mt-2" id="temp-${response.id}">
                 <div class="col-12 col-md-8 mb-1 mb-md-0">
@@ -224,75 +446,18 @@
                     </a>
                 </div>
                 <div class="col-12 col-md-4 text-md-end">
-                    <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto">
+                    <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto delete-temp">
                         Delete
                     </button>
                 </div>
             </div>
         `);
 
-                fileRow.find('button').on('click', function () {
-
-                    const url = ajaxDelete.replace('/0/', `/${response.id}/`);
-                    const $btn = $(this);
-
-                    Swal.fire({
-                        title: 'Delete file?',
-                        text: 'This temporary file will be removed.',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonColor: '#d33',
-                        cancelButtonColor: '#6c757d',
-                        confirmButtonText: 'Yes, delete it'
-                    }).then((result) => {
-
-                        if (!result.isConfirmed) return;
-
-                        // Disable button to prevent double click
-                        $btn.prop('disabled', true);
-
-                        $.ajax({
-                            url: url,
-                            type: 'POST',
-                            headers: {
-                                'X-CSRFToken': csrftoken
-                            },
-                            success: function () {
-
-                                // Smooth remove
-                                fileRow.fadeOut(200, function () {
-                                    $(this).remove();
-                                });
-
-                                progressContainer.fadeOut(200, function () {
-                                    $(this).remove();
-                                });
-
-                                // Reset input
-                                $('#fileInput').val('');
-
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Deleted!',
-                                    text: 'File removed successfully',
-                                    timer: 1200,
-                                    showConfirmButton: false
-                                });
-                            },
-                            error: function () {
-                                $btn.prop('disabled', false);
-
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Failed!',
-                                    text: 'Could not delete file'
-                                });
-                            }
-                        });
-
-                    });
-                });
+                
                 $('#uploadList').append(fileRow);
+                $('#fileInput').val('');
+                $('#fileError').text('');
+                progressContainer.fadeOut(200, function () { $(this).remove(); });
 
             },
             error: function (xhr) {
@@ -306,6 +471,7 @@
                 } catch (e) { }
 
                 $('#fileError').text(msg);
+                $('#fileInput').val('');
                 progressContainer.remove();
             }
         });
