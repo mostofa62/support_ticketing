@@ -88,14 +88,31 @@ class MyAdminSite(AdminSite):
 
         return TemplateResponse(request, "admin/operations_dashboard.html", context)
 
-    # 🚀 DEFAULT DASHBOARD (after login)
     def index(self, request, extra_context=None):
-        if request.user.groups.filter(name__in=["Staff", "Operation"]).exists():
+        is_operation = request.user.groups.filter(name="Operation").exists()
+        is_staff_group = request.user.groups.filter(name="Staff").exists()
+        is_superuser = request.user.is_superuser
+
+        # ✅ STAFF + OPERATION → ONLY custom dashboard
+        if is_operation or is_staff_group:
             context = self.get_dashboard_context(request)
 
             return TemplateResponse(
                 request,
                 "admin/operations_dashboard.html",
+                context
+            )
+
+        # ✅ SUPERUSER → HYBRID VIEW
+        if is_superuser:
+            context = self.get_dashboard_context(request)
+
+            # include default admin app list
+            context['app_list'] = self.get_app_list(request)
+
+            return TemplateResponse(
+                request,
+                "admin/hybrid_dashboard.html",
                 context
             )
 

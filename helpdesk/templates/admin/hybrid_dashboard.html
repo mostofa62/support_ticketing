@@ -1,0 +1,25 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+
+<div id="content-main">
+
+    <div class="module">
+        <h2>Admin & Dashboard</h2>
+    </div>
+
+    <!-- Default Django Admin Content -->
+    {{ block.super }}
+
+    <!-- Your Dashboard -->
+    <div class="module" style="border:1px solid #000999;">
+        <h2>Operations Dashboard</h2>
+        {% include "admin/operations_dashboard_partial.html" %}
+    </div>
+
+</div>
+
+
+
+{% endblock %}
