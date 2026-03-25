@@ -131,3 +131,10 @@ class ClientUser(User):
         proxy = True
         verbose_name = 'Client'
         verbose_name_plural = 'Clients'
+
+
+class Operation(User):
+    class Meta:
+        proxy = True
+        verbose_name = 'Operation'
+        verbose_name_plural = 'Operations'

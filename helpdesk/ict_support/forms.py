@@ -126,7 +126,7 @@ class CustomUserCreationForm(UserCreationForm):
 
                 groups = self.cleaned_data["groups"]
                 # auto is_staff if Staff group selected
-                user.is_staff = groups.filter(name="Staff").exists()
+                user.is_staff = groups.filter(name__in=["Staff", "Operation"]).exists()
 
                 phone_number = self.cleaned_data.get("phone_number")
                 address = self.cleaned_data.get("address")

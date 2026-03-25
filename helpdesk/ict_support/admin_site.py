@@ -5,6 +5,10 @@ from django.template.response import TemplateResponse
 from .models import Ticket
 from collections import Counter
 from .choices import TicketPriority,TicketStatus
+
+def get_recent(qs, status):
+    return qs.filter(status=status).order_by('-date_created')[:2]
+
 class MyAdminSite(AdminSite):
     site_header = "ICT Support Admin"
     site_title = "ICT Support"
@@ -22,26 +26,20 @@ class MyAdminSite(AdminSite):
 
     # 🔥 Shared dashboard data (IMPORTANT)
     def get_dashboard_context(self, request):
-        total_tickets = Ticket.objects.count()
+        is_operation = request.user.groups.filter(name="Operation").exists()
+
+        base_qs = (
+            Ticket.objects.all()
+            if request.user.is_superuser or is_operation
+            else Ticket.objects.filter(assigned_to=request.user)
+        )
 
         STATUS_COLORS = {
-            'open': '#dc3545',          # red
-            'in_progress': '#ffc107',   # yellow
-            'resolved': '#28a745',      # green
-            'closed': '#6c757d',        # gray
+            'open': '#dc3545',
+            'in_progress': '#ffc107',
+            'resolved': '#28a745',
+            'closed': '#6c757d',
         }
-
-
-        status_stats_raw = Ticket.objects.values('status').annotate(count=Count('id'))
-
-        status_stats = [
-            {
-                "label": TicketStatus(s["status"]).label,  # 🔥 converts to "Open", "In Progress"
-                "count": s["count"],
-                "color": STATUS_COLORS.get(s["status"], '#999999')
-            }
-            for s in status_stats_raw
-        ]
 
         PRIORITY_COLORS = {
             'low': '#17a2b8',
@@ -49,11 +47,15 @@ class MyAdminSite(AdminSite):
             'high': '#dc3545',
             'urgent': '#EE0000',
         }
-        
-        priority_stats_raw = (
-            Ticket.objects.values('priority')
-            .annotate(count=Count('id'))
-        )
+
+        status_stats = [
+            {
+                "label": TicketStatus(s["status"]).label,
+                "count": s["count"],
+                "color": STATUS_COLORS.get(s["status"], '#999999')
+            }
+            for s in base_qs.values('status').annotate(count=Count('id'))
+        ]
 
         priority_stats = [
             {
@@ -61,24 +63,24 @@ class MyAdminSite(AdminSite):
                 "count": p["count"],
                 "color": PRIORITY_COLORS.get(p["priority"], '#999999')
             }
-            for p in priority_stats_raw
+            for p in base_qs.values('priority').annotate(count=Count('id'))
         ]
 
         return dict(
             self.each_context(request),
-            total_tickets=total_tickets,
+            total_tickets=base_qs.count(),
             status_stats=status_stats,
             priority_stats=priority_stats,
-            open_tickets=Ticket.objects.filter(status='open'),
-            in_progress=Ticket.objects.filter(status='in_progress'),
-            resolved=Ticket.objects.filter(status='resolved'),
+            open_tickets=get_recent(base_qs, 'open'),
+            in_progress=get_recent(base_qs, 'in_progress'),
+            resolved=get_recent(base_qs, 'resolved'),
         )
 
     # 🔐 Dashboard page
     def operations_dashboard(self, request):
         if not (
             request.user.is_superuser or
-            request.user.groups.filter(name__in=["Staff", "Operations"]).exists()
+            request.user.groups.filter(name__in=["Staff", "Operation"]).exists()
         ):
             return TemplateResponse(request, "admin/403.html", status=403)
 
@@ -88,7 +90,7 @@ class MyAdminSite(AdminSite):
 
     # 🚀 DEFAULT DASHBOARD (after login)
     def index(self, request, extra_context=None):
-        if request.user.groups.filter(name__in=["Staff", "Operations"]).exists():
+        if request.user.groups.filter(name__in=["Staff", "Operation"]).exists():
             context = self.get_dashboard_context(request)
 
             return TemplateResponse(

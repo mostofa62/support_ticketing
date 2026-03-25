@@ -1,13 +1,13 @@
 from django import forms
 from django.contrib import admin
 from django.utils import timezone
-from .models import IssueCategory, IssueSubcategory, Ticket, Attachment, PasswordResetConfig, StaffUser, ClientUser
+from .models import IssueCategory, IssueSubcategory, Ticket, Attachment, PasswordResetConfig, StaffUser, ClientUser, Operation
 
 from django.db.models import Count
 from django.utils.html import format_html
 from django.urls import reverse
 from django.contrib.auth.models import User, Group
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin,GroupAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 from users.models import UserProfile
 from .admin_site import admin_site
@@ -106,7 +106,7 @@ class CustomUserAdmin(UserAdmin):
 #admin.site.register(User, CustomUserAdmin)
 #admin_site.unregister(User)
 admin_site.register(User,CustomUserAdmin)
-admin_site.register(Group)
+admin_site.register(Group,GroupAdmin)
 
 class AttachmentInline(admin.TabularInline):
     model = Attachment
@@ -156,7 +156,8 @@ class TicketAdmin(admin.ModelAdmin):
     ordering = ('-date_created',)
 
     def get_list_display(self, request):
-        if request.user.is_superuser:
+        is_operation = request.user.groups.filter(name="Operation").exists()
+        if request.user.is_superuser or is_operation:
             return self.list_display
         
         return (
@@ -176,14 +177,16 @@ class TicketAdmin(admin.ModelAdmin):
         
 
     def get_readonly_fields(self, request, obj=None):
-        if request.user.is_superuser:
+        is_operation = request.user.groups.filter(name="Operation").exists()
+        if request.user.is_superuser or is_operation:
             return self.readonly_fields
 
         # make ALL fields readonly for staff
         return [field.name for field in self.model._meta.fields]
     
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        if not request.user.is_superuser:
+        is_operation = request.user.groups.filter(name="Operation").exists()
+        if not request.user.is_superuser and not is_operation:
             extra_context = extra_context or {}
             extra_context['show_save'] = False
             extra_context['show_save_and_continue'] = False
@@ -247,8 +250,9 @@ class TicketAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
+        is_operation = request.user.groups.filter(name="Operation").exists()
         # Staff only see tickets assigned to them
-        if not request.user.is_superuser:
+        if not request.user.is_superuser and not is_operation:
             qs = qs.filter(assigned_to=request.user)
         # Annotate attachments count
         qs = qs.annotate(_attachment_count=Count('attachments'))
@@ -295,8 +299,16 @@ class TicketAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         if request.user.is_superuser:
             return True
+        
+        is_operation = request.user.groups.filter(name="Operation").exists()
+
+        # Operation can edit ANY ticket
+        if is_operation:
+            return True
+        
         if obj is None:
             return True
+        
         # Staff can change tickets only if assigned to them
         return obj.assigned_to == request.user
 
@@ -317,15 +329,25 @@ class TicketAdmin(admin.ModelAdmin):
         return actions
 
     def save_model(self, request, obj, form, change):
-        if not request.user.is_superuser:
-            original = Ticket.objects.get(pk=obj.pk)
+        is_operation = request.user.groups.filter(name="Operation").exists()
 
-            # prevent changing restricted fields
-            obj.assigned_to = original.assigned_to
-            obj.priority = original.priority
-            obj.submitter = original.submitter
-        if not change or not obj.submitter:
+        # For staff only (not superuser, not operation)
+        if not request.user.is_superuser and not is_operation:
+            if change:
+                original = Ticket.objects.get(pk=obj.pk)
+
+                # prevent changing restricted fields
+                obj.assigned_to = original.assigned_to
+                obj.priority = original.priority
+                obj.submitter = original.submitter
+            else:
+                # on create
+                obj.submitter = request.user
+
+        # Ensure submitter is always set
+        if not obj.submitter:
             obj.submitter = request.user
+
         super().save_model(request, obj, form, change)
 
     
@@ -381,7 +403,7 @@ class StaffUserAdmin(UserAdmin):
         return False
     
     # Customize list display — hide is_staff
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active')
+    list_display = ('email', 'first_name', 'last_name', 'is_active')
 
     # Remove filter sidebar items
     list_filter = ('is_active',)  # empty tuple disables all default filters
@@ -402,9 +424,34 @@ class ClientUserAdmin(UserAdmin):
         return False
     
     # Customize list display — hide is_staff
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active')
+    list_display = ('email', 'first_name', 'last_name', 'is_active')
 
     # Remove filter sidebar items
     list_filter = ('is_active',)  # empty tuple disables all default filters
 
 admin_site.register(ClientUser, ClientUserAdmin)
+
+
+
+#@admin.register(ClientUser, site=admin_site)
+class OperationAdmin(UserAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(groups__name="Operation")
+
+    # disable add/edit/delete
+    def has_add_permission(self, request):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+    # Customize list display — hide is_staff
+    list_display = ('email', 'first_name', 'last_name', 'is_active')
+
+    # Remove filter sidebar items
+    list_filter = ('is_active',)  # empty tuple disables all default filters
+
+
+admin_site.register(Operation, OperationAdmin)

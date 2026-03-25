@@ -7,7 +7,7 @@
 
     <!-- Open -->
     <div style="flex:1;">
-        <h3>🟥 Open ({{ open_tickets|length }})</h3>
+        <h3>🟥 Recent Open</h3>
         {% for t in open_tickets %}
             <div class="card">{{ t }}</div>
         {% endfor %}
@@ -15,7 +15,7 @@
 
     <!-- In Progress -->
     <div style="flex:1;">
-        <h3>🟨 In Progress ({{ in_progress|length }})</h3>
+        <h3>🟨 Recent In Progress</h3>
         {% for t in in_progress %}
             <div class="card">{{ t }}</div>
         {% endfor %}
@@ -23,7 +23,7 @@
 
     <!-- Resolved -->
     <div style="flex:1;">
-        <h3>🟩 Resolved ({{ resolved|length }})</h3>
+        <h3>🟩 Recent Resolved</h3>
         {% for t in resolved %}
             <div class="card">{{ t }}</div>
         {% endfor %}
